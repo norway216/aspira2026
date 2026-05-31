@@ -1,0 +1,6 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="main.qml">../qml/main.qml</file>
+        <file alias="bip39_english.txt">bip39_english.txt</file>
+    </qresource>
+</RCC>

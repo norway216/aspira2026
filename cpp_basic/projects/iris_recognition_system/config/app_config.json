@@ -1,0 +1,43 @@
+{
+  "camera": {
+    "device": 0,
+    "width": 640,
+    "height": 480,
+    "fps": 30
+  },
+  "models": {
+    "backend": "classical_cv",
+    "eye_detector": "models/eye_detector.onnx",
+    "iris_segmenter": "models/iris_segmenter.onnx",
+    "iris_feature": "models/iris_feature.onnx",
+    "iris_liveness": "models/iris_liveness.onnx",
+    "haar_cascade_eye": ""
+  },
+  "thresholds": {
+    "quality": 0.35,
+    "liveness": 0.55,
+    "matching": 0.35
+  },
+  "normalization": {
+    "output_width": 512,
+    "output_height": 64,
+    "radial_resolution": 64,
+    "angular_resolution": 512
+  },
+  "feature": {
+    "gabor_scales": 4,
+    "gabor_orientations": 8,
+    "code_bytes": 256
+  },
+  "security": {
+    "encrypt_templates": true,
+    "store_raw_images": false,
+    "database_path": "iris_data.db"
+  },
+  "ui": {
+    "show_preview": true,
+    "show_roi": true,
+    "show_mask": true,
+    "show_normalized": true
+  }
+}

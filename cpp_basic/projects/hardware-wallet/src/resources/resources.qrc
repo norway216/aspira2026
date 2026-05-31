@@ -1,0 +1,26 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/">
+        <file alias="qml/main.qml">../qml/main.qml</file>
+        <file alias="qml/Theme.qml">../qml/Theme.qml</file>
+        <file alias="qml/qmldir">../qml/qmldir</file>
+        <file alias="qml/pages/LoginPage.qml">../qml/pages/LoginPage.qml</file>
+        <file alias="qml/pages/RegisterPage.qml">../qml/pages/RegisterPage.qml</file>
+        <file alias="qml/pages/DashboardPage.qml">../qml/pages/DashboardPage.qml</file>
+        <file alias="qml/pages/SendPage.qml">../qml/pages/SendPage.qml</file>
+        <file alias="qml/pages/ReceivePage.qml">../qml/pages/ReceivePage.qml</file>
+        <file alias="qml/pages/HistoryPage.qml">../qml/pages/HistoryPage.qml</file>
+        <file alias="qml/pages/BackupPage.qml">../qml/pages/BackupPage.qml</file>
+        <file alias="qml/pages/RestorePage.qml">../qml/pages/RestorePage.qml</file>
+        <file alias="qml/pages/SettingsPage.qml">../qml/pages/SettingsPage.qml</file>
+        <file alias="qml/pages/TransactionDetailPage.qml">../qml/pages/TransactionDetailPage.qml</file>
+        <file alias="qml/pages/LockScreenPage.qml">../qml/pages/LockScreenPage.qml</file>
+        <file alias="qml/components/PinInput.qml">../qml/components/PinInput.qml</file>
+        <file alias="qml/components/DetailRow.qml">../qml/components/DetailRow.qml</file>
+        <file alias="qml/components/BalanceCard.qml">../qml/components/BalanceCard.qml</file>
+        <file alias="qml/components/TransactionRow.qml">../qml/components/TransactionRow.qml</file>
+        <file alias="qml/components/NavBar.qml">../qml/components/NavBar.qml</file>
+        <file alias="qml/components/LoadingOverlay.qml">../qml/components/LoadingOverlay.qml</file>
+        <file alias="qml/components/ConfirmDialog.qml">../qml/components/ConfirmDialog.qml</file>
+    </qresource>
+</RCC>
