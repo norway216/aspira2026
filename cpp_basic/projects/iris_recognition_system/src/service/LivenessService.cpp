@@ -10,7 +10,7 @@ LivenessResult LivenessService::check(const cv::Mat& eyeRoi) {
     if (!eyeRoi.empty()) {
         m_recentFrames.push_back(eyeRoi.clone());
         if (m_recentFrames.size() > MAX_HISTORY) {
-            m_recentFrames.erase(m_recentFrames.begin());
+            m_recentFrames.pop_front();
         }
     }
     return m_detector.check(eyeRoi, m_recentFrames);

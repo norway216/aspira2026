@@ -3,6 +3,7 @@
 #include "domain/User.h"
 #include "domain/IrisTemplate.h"
 #include "domain/RecognitionResult.h"
+#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -60,7 +61,7 @@ private:
     std::vector<std::vector<uint8_t>> m_collectedCodes;
     std::vector<std::vector<uint8_t>> m_collectedMasks;
     std::vector<float> m_collectedQualities;
-    std::vector<cv::Mat> m_recentFrames;
+    std::deque<cv::Mat> m_recentFrames;
 
     QualityResult m_lastQuality;
     int m_requiredFrames = 5;

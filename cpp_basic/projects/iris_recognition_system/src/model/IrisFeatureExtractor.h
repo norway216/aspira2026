@@ -35,10 +35,19 @@ public:
     }
 
 private:
+    /// A pair of even/odd Gabor kernels for one orientation
+    struct GaborKernelPair {
+        cv::Mat even;  // psi = 0 (real part)
+        cv::Mat odd;   // psi = π/2 (imaginary part)
+    };
+
     /// Generate a 2D Gabor kernel
     static cv::Mat createGaborKernel(int kernelSize,
                                       float sigma, float theta,
                                       float lambda, float gamma, float psi);
+
+    /// Precompute all Gabor kernels (called once from initialize)
+    void buildGaborCache();
 
     /// Apply Gabor filter bank and quantize phase responses
     void extractIrisCode(const cv::Mat& normalizedIris,
@@ -52,6 +61,14 @@ private:
     int m_numScales       = 4;
     int m_numOrientations = 8;
     bool m_initialized    = true;  // classical CV needs no model
+
+    // Precomputed Gabor kernels (avoid per-frame creation)
+    std::vector<GaborKernelPair> m_gaborCache;
+    int m_cachedOrientations = 0;
+    float m_cacheSigma       = 0.0f;
+    float m_cacheLambda      = 0.0f;
+    float m_cacheGamma       = 0.0f;
+    int m_cacheKernelSize    = 0;
 };
 
 } // namespace iris
