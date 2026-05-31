@@ -72,7 +72,7 @@ FinalDecision RecognitionService::processFrame(const cv::Mat& frame) {
     // Step 6: Liveness check
     m_recentFrames.push_back(eyeRoi.clone());
     if (m_recentFrames.size() > 10) {
-        m_recentFrames.erase(m_recentFrames.begin());
+        m_recentFrames.pop_front();
     }
     m_lastLiveness = m_livenessDetector.check(eyeRoi, m_recentFrames);
 

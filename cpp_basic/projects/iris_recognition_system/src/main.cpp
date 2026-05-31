@@ -27,6 +27,7 @@
 #include "service/LivenessService.h"
 #include "service/AuditService.h"
 #include "evaluation/Benchmark.h"
+#include "evaluation/FpsBenchmark.h"
 #ifdef HAS_ONNXRUNTIME
 #include "nn/OnnxRuntimeEngine.h"
 #endif
@@ -43,11 +44,26 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <iomanip>
 
 using namespace iris;
 
 // Global flag for signal handling
 std::atomic<bool> g_running{true};
+
+// Debug mode flag (set via --debug)
+bool g_debug = false;
+
+// Debug logging macro
+#define DEBUG_LOG(msg) do { if (g_debug) { \
+    std::cout << "[DEBUG] " << __FILE__ << ":" << __LINE__ << " | " << msg << std::endl; \
+} } while(0)
+
+// Trace log to track pipeline stages per frame
+static int g_debugFrameCount = 0;
+#define DEBUG_TRACE(msg) do { if (g_debug) { \
+    std::cout << "[TRACE] frame=" << g_debugFrameCount << " | " << msg << std::endl; \
+} } while(0)
 
 void signalHandler(int /*sig*/) {
     g_running = false;
@@ -150,7 +166,15 @@ void printHelp(const char* progName) {
               << "  --benchmark-synthetic <img> Run synthetic benchmark\n"
               << "  --export-roc <path>        Export ROC curve data to CSV\n"
               << "  --test-onnx <model.onnx>    Test ONNX Runtime inference\n"
-              << "  --help                     Show this help\n\n"
+              << "  --yolo-model <model.onnx>   Path to YOLO face detection ONNX model\n"
+              << "  --detector-mode <haar|yolo> Eye detection backend (default: haar)\n"
+              << "  --benchmark-fps             Enable real-time FPS benchmarking\n"
+              << "  --debug                     Enable verbose debug output\n"
+              << "  --help                      Show this help\n\n"
+              << "Examples:\n"
+              << "  " << progName << " --detector-mode yolo --yolo-model models/face.onnx\n"
+              << "  " << progName << " --benchmark-fps --no-display\n"
+              << "  " << progName << " --debug --detector-mode yolo\n\n"
               << "Controls (in GUI window):\n"
               << "  q / ESC     Quit\n"
               << "  e           Switch to enrollment mode\n"
@@ -177,10 +201,14 @@ int main(int argc, char* argv[]) {
     std::string benchmarkSyntheticPath;
     std::string exportRocPath;
     std::string testOnnxPath;
+    std::string yoloModelPath;
+    std::string detectorMode   = "haar";  // "haar" or "yolo"
     int cameraId              = 0;
     float matchThreshold      = DEFAULT_MATCHING_THRESHOLD;
     bool showDisplay          = true;
     bool listUsers            = false;
+    bool debugMode            = false;
+    bool benchmarkFps         = false;
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
@@ -196,8 +224,12 @@ int main(int argc, char* argv[]) {
         else if (arg == "--benchmark-synthetic" && i + 1 < argc) benchmarkSyntheticPath = argv[++i];
         else if (arg == "--export-roc" && i + 1 < argc) exportRocPath = argv[++i];
         else if (arg == "--test-onnx" && i + 1 < argc) testOnnxPath = argv[++i];
+        else if (arg == "--yolo-model" && i + 1 < argc) yoloModelPath = argv[++i];
+        else if (arg == "--detector-mode" && i + 1 < argc) detectorMode = argv[++i];
         else if (arg == "--no-display")             showDisplay = false;
         else if (arg == "--list-users")             listUsers = true;
+        else if (arg == "--debug")                  debugMode = true;
+        else if (arg == "--benchmark-fps")          benchmarkFps = true;
         else if (arg == "--help")                   { printHelp(argv[0]); return 0; }
         else {
             std::cerr << "Unknown option: " << arg << "\n";
@@ -210,6 +242,14 @@ int main(int argc, char* argv[]) {
               << "║     Iris Recognition System v" << APP_VERSION << "                  ║\n"
               << "║     C++20 + OpenCV Classical CV Pipeline        ║\n"
               << "╚══════════════════════════════════════════════════╝\n\n";
+
+    // Set global debug flag
+    g_debug = debugMode;
+    if (g_debug) {
+        std::cout << "[Debug] Debug mode enabled! Use this with GDB.\n"
+                  << "[Debug] Set breakpoints, then 'continue' to run.\n"
+                  << "[Debug] Key variables: g_debug, g_running, g_debugFrameCount\n\n";
+    }
 
     // ── Initialize modules ─────────────────────────────────────
     std::cout << "[Init] Initializing modules...\n";
@@ -236,7 +276,16 @@ int main(int argc, char* argv[]) {
 
     // Eye detector
     EyeDetector eyeDetector;
-    eyeDetector.initialize();
+    if (detectorMode == "yolo" && !yoloModelPath.empty()) {
+        if (eyeDetector.enableYolo(yoloModelPath)) {
+            std::cout << "[Init] YOLO detector loaded: " << yoloModelPath << "\n";
+        } else {
+            std::cerr << "[Init] YOLO failed, falling back to Haar cascade\n";
+            eyeDetector.initialize();
+        }
+    } else {
+        eyeDetector.initialize();
+    }
 
     // Quality checker
     QualityChecker qualityChecker(DEFAULT_QUALITY_THRESHOLD);
@@ -433,6 +482,10 @@ int main(int argc, char* argv[]) {
     int fps = 0;
     std::string currentUser = username;
 
+    // FPS Benchmark
+    FpsBenchmark fpsBenchmark("IrisRecognition");
+    int benchmarkReportInterval = 100;  // Report every 100 frames
+
     std::cout << "[Main] Starting main loop. Press 'q' or ESC to quit.\n";
     std::cout << "[Main] Press 'e' for enrollment, 'i' for identification.\n\n";
 
@@ -444,6 +497,10 @@ int main(int argc, char* argv[]) {
         }
 
         ++frameCount;
+        g_debugFrameCount = frameCount;
+        DEBUG_TRACE("--- Frame " << frameCount << " START ---");
+        DEBUG_TRACE("Frame acquired: " << frame.cols << "x" << frame.rows
+                     << " channels=" << frame.channels() << " depth=" << frame.depth());
 
         // FPS calculation
         auto now = std::chrono::steady_clock::now();
@@ -459,8 +516,17 @@ int main(int argc, char* argv[]) {
         FinalDecision decision;
         cv::Mat eyeRoi;
 
+        DEBUG_TRACE("Processing mode=" << mode);
+
+        if (benchmarkFps) fpsBenchmark.startFrame();
+
         if (mode == "enroll") {
+            if (benchmarkFps) fpsBenchmark.startStage("enrollment");
             bool completed = enrollmentService.processFrame(frame);
+            if (benchmarkFps) fpsBenchmark.endStage();
+            DEBUG_TRACE("Enrollment processFrame returned, completed=" << completed
+                         << " progress=" << enrollmentService.getProgress()
+                         << "/" << enrollmentService.getRequiredFrames());
 
             if (completed) {
                 enrollmentService.finalizeEnrollment(currentUser);
@@ -469,12 +535,27 @@ int main(int argc, char* argv[]) {
                 mode = "identify";  // Switch to identify mode
             }
         } else {
+            if (benchmarkFps) fpsBenchmark.startStage("recognition");
             decision = recognitionService.processFrame(frame);
+            if (benchmarkFps) fpsBenchmark.endStage();
+            DEBUG_TRACE("Recognition decision: accepted=" << decision.accepted
+                         << " username=" << decision.username
+                         << " reason=" << decision.reason);
         }
+
+        if (benchmarkFps) fpsBenchmark.endFrame();
 
         // Get eye ROI for display
         eyeRoi = eyeDetector.getBestEyeRoi(frame);
+        DEBUG_TRACE("Eye ROI: " << eyeRoi.cols << "x" << eyeRoi.rows
+                     << (eyeRoi.empty() ? " (EMPTY)" : ""));
+
         auto segResult = segmenter.segment(eyeRoi);
+        DEBUG_TRACE("Segmentation: valid=" << segResult.boundaries.valid()
+                     << " iris_center=(" << segResult.boundaries.iris_center.x
+                     << "," << segResult.boundaries.iris_center.y
+                     << ") iris_r=" << segResult.boundaries.iris_radius
+                     << " pupil_r=" << segResult.boundaries.pupil_radius);
 
         // ── Display ────────────────────────────────────────────
         if (showDisplay) {
@@ -573,9 +654,14 @@ int main(int argc, char* argv[]) {
 
         // Handle keyboard input
         int key = cv::waitKey(1) & 0xFF;
+        if (key != 0xFF) {
+            DEBUG_TRACE("Key pressed: 0x" << std::hex << key << std::dec);
+        }
         if (key == 'q' || key == 27) {  // q or ESC
+            DEBUG_LOG("Quit key pressed");
             g_running = false;
         } else if (key == 'e') {
+            DEBUG_LOG("Switching to enrollment mode");
             mode = "enroll";
             enrollmentService.reset();
             std::cout << "[Main] Switched to enrollment mode.\n"
@@ -583,6 +669,7 @@ int main(int argc, char* argv[]) {
             // Non-blocking: use default or previously set username
             std::cout << currentUser << "\n";
         } else if (key == 'i') {
+            DEBUG_LOG("Switching to identification mode");
             mode = "identify";
             std::cout << "[Main] Switched to identification mode.\n";
         } else if (key == 's') {
@@ -590,8 +677,23 @@ int main(int argc, char* argv[]) {
                 std::to_string(std::chrono::system_clock::now().time_since_epoch().count()) +
                 ".png";
             cv::imwrite(filename, frame);
+            DEBUG_LOG("Frame saved to " << filename);
             std::cout << "[Main] Saved frame: " << filename << "\n";
         }
+        DEBUG_TRACE("--- Frame " << frameCount << " END ---");
+
+        // Periodic FPS benchmark report
+        if (benchmarkFps && fpsBenchmark.totalFrames() > 0 &&
+            fpsBenchmark.totalFrames() % benchmarkReportInterval == 0) {
+            std::cout << "[FPS] " << std::fixed << std::setprecision(1)
+                      << fpsBenchmark.avgFps() << " FPS (avg over "
+                      << fpsBenchmark.totalFrames() << " frames)\n";
+        }
+    }
+
+    // ── FPS Benchmark final report ──────────────────────────────
+    if (benchmarkFps && fpsBenchmark.totalFrames() > 0) {
+        fpsBenchmark.report();
     }
 
     // ── Cleanup ────────────────────────────────────────────────

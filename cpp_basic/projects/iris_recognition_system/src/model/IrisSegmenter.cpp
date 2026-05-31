@@ -72,7 +72,7 @@ bool IrisSegmenter::detectIrisBoundary(const cv::Mat& gray,
     std::vector<cv::Vec3f> circles;
     double minDist = std::max(1.0, static_cast<double>(gray.rows) / 4.0);
     cv::HoughCircles(gray, circles, cv::HOUGH_GRADIENT,
-                     1.0,                    // dp
+                     1.2,                    // dp (reduced resolution for speed)
                      minDist,                // minDist
                      100.0,                  // param1 (Canny high threshold)
                      30.0,                   // param2 (accumulator threshold)
@@ -82,7 +82,7 @@ bool IrisSegmenter::detectIrisBoundary(const cv::Mat& gray,
     if (circles.empty()) {
         // Try again with lower threshold
         cv::HoughCircles(gray, circles, cv::HOUGH_GRADIENT,
-                         1.0, minDist,
+                         1.2, minDist,
                          80.0, 20.0,
                          m_minIrisRadius, m_maxIrisRadius);
     }
@@ -185,28 +185,28 @@ bool IrisSegmenter::detectPupilBoundary(const cv::Mat& gray,
 void IrisSegmenter::generateMasks(const cv::Size& size,
                                    const IrisBoundaries& boundaries,
                                    cv::Mat& irisMask, cv::Mat& pupilMask) {
-    irisMask  = cv::Mat::zeros(size, CV_8U);
+    // Optimized: use cv::circle (SIMD-accelerated) instead of per-pixel distance loop
+    // Draw pupil mask (filled white circle)
     pupilMask = cv::Mat::zeros(size, CV_8U);
+    cv::circle(pupilMask,
+               cv::Point(static_cast<int>(boundaries.pupil_center.x),
+                         static_cast<int>(boundaries.pupil_center.y)),
+               static_cast<int>(boundaries.pupil_radius),
+               cv::Scalar(255), -1);
 
-    for (int y = 0; y < size.height; ++y) {
-        for (int x = 0; x < size.width; ++x) {
-            cv::Point2f pt(static_cast<float>(x), static_cast<float>(y));
-
-            float distToPupil = GeometryUtils::distance(pt, boundaries.pupil_center);
-            float distToIris  = GeometryUtils::distance(pt, boundaries.iris_center);
-
-            // Pupil mask: inside pupil circle
-            if (distToPupil <= boundaries.pupil_radius) {
-                pupilMask.at<uint8_t>(y, x) = 255;
-            }
-
-            // Iris mask: between pupil and iris boundaries
-            if (distToPupil >= boundaries.pupil_radius * 0.95f &&
-                distToIris  <= boundaries.iris_radius  * 1.02f) {
-                irisMask.at<uint8_t>(y, x) = 255;
-            }
-        }
-    }
+    // Draw iris mask: filled iris circle, then erase pupil area
+    irisMask = cv::Mat::zeros(size, CV_8U);
+    cv::circle(irisMask,
+               cv::Point(static_cast<int>(boundaries.iris_center.x),
+                         static_cast<int>(boundaries.iris_center.y)),
+               static_cast<int>(boundaries.iris_radius * 1.02f),
+               cv::Scalar(255), -1);
+    // Erase pupil from iris mask (iris = annulus between pupil and iris boundary)
+    cv::circle(irisMask,
+               cv::Point(static_cast<int>(boundaries.pupil_center.x),
+                         static_cast<int>(boundaries.pupil_center.y)),
+               static_cast<int>(boundaries.pupil_radius * 0.95f),
+               cv::Scalar(0), -1);
 }
 
 void IrisSegmenter::refineBoundaries(const cv::Mat& gray,

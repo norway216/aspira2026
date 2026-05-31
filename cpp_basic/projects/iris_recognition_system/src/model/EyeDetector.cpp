@@ -1,4 +1,5 @@
 #include "model/EyeDetector.h"
+#include "model/YoloDetector.h"
 #include <opencv2/imgproc.hpp>
 #include <iostream>
 #include <algorithm>
@@ -6,6 +7,19 @@
 namespace iris {
 
 EyeDetector::EyeDetector() = default;
+EyeDetector::~EyeDetector() = default;
+
+bool EyeDetector::enableYolo(const std::string& modelPath, bool useGPU) {
+    m_yoloDetector = std::make_unique<YoloDetector>();
+    if (m_yoloDetector->loadModel(modelPath, useGPU)) {
+        m_yoloEnabled = true;
+        std::cout << "[EyeDetector] YOLO mode enabled\n";
+        return true;
+    }
+    m_yoloDetector.reset();
+    std::cerr << "[EyeDetector] Failed to load YOLO model, keeping Haar cascade\n";
+    return false;
+}
 
 bool EyeDetector::initialize(const std::string& cascadePath) {
     std::string path = cascadePath;
@@ -45,7 +59,24 @@ bool EyeDetector::initialize(const std::string& cascadePath) {
 std::vector<EyeBox> EyeDetector::detect(const cv::Mat& frame) {
     std::vector<EyeBox> results;
 
-    if (!m_initialized || frame.empty()) return results;
+    if (frame.empty()) return results;
+
+    // ── YOLO path ─────────────────────────────────────────────
+    if (m_yoloEnabled && m_yoloDetector) {
+        auto yoloResults = m_yoloDetector->detect(frame);
+        for (const auto& face : yoloResults) {
+            EyeBox box;
+            box.bbox       = YoloDetector::getEyeRoiFromFace(face.bbox, frame.size());
+            box.confidence = face.confidence;
+            box.label      = static_cast<int>(results.size());
+            results.push_back(box);
+        }
+        if (!results.empty()) {
+            return results;
+        }
+    }
+
+    if (!m_initialized) return results;
     // Guard against very small frames
     if (frame.rows < 60 || frame.cols < 60) return results;
 
@@ -154,16 +185,19 @@ cv::Mat EyeDetector::extractEyeRoi(const cv::Mat& frame,
     }
 
     cv::Rect roi(x0, y0, width, height);
-    cv::Mat eyeRoi = frame(roi).clone();
-
-    // Resize to target size
-    cv::resize(eyeRoi, eyeRoi, cv::Size(roiSize, roiSize), 0, 0, cv::INTER_LANCZOS4);
+    cv::Mat eyeRoi;
+    cv::resize(frame(roi), eyeRoi, cv::Size(roiSize, roiSize), 0, 0, cv::INTER_LINEAR);
     return eyeRoi;
 }
 
 cv::Mat EyeDetector::getBestEyeRoi(const cv::Mat& frame) {
     if (frame.empty()) {
         return cv::Mat(256, 256, CV_8UC3, cv::Scalar(0));
+    }
+
+    // Use YoloDetector's eye extraction if YOLO is enabled
+    if (m_yoloEnabled && m_yoloDetector) {
+        return m_yoloDetector->extractEyeRoi(frame);
     }
 
     auto detections = detect(frame);
@@ -204,8 +238,8 @@ cv::Mat EyeDetector::getBestEyeRoi(const cv::Mat& frame) {
     int height = std::max(1, y1 - y0);
 
     cv::Rect roi(x0, y0, width, height);
-    cv::Mat eyeRoi = frame(roi).clone();
-    cv::resize(eyeRoi, eyeRoi, cv::Size(roiSize, roiSize), 0, 0, cv::INTER_LANCZOS4);
+    cv::Mat eyeRoi;
+    cv::resize(frame(roi), eyeRoi, cv::Size(roiSize, roiSize), 0, 0, cv::INTER_LINEAR);
     return eyeRoi;
 }
 
