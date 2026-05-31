@@ -19,6 +19,7 @@ struct OnnxRuntimeEngine::Impl {
     std::vector<std::string> inputNames;
     std::vector<std::string> outputNames;
     std::vector<std::vector<int64_t>> inputShapes;
+    std::vector<std::vector<int64_t>> outputShapes;
     bool loaded = false;
 
     Impl() {
@@ -68,6 +69,10 @@ bool OnnxRuntimeEngine::loadModel(const std::string& modelPath) {
         for (size_t i = 0; i < numOutputs; ++i) {
             auto name = m_impl->session->GetOutputNameAllocated(i, allocator);
             m_impl->outputNames.push_back(name.get());
+
+            auto typeInfo = m_impl->session->GetOutputTypeInfo(i);
+            auto tensorInfo = typeInfo.GetTensorTypeAndShapeInfo();
+            m_impl->outputShapes.push_back(tensorInfo.GetShape());
         }
 
         m_impl->loaded = true;
@@ -203,6 +208,13 @@ std::vector<std::string> OnnxRuntimeEngine::outputNames() const {
 std::vector<int64_t> OnnxRuntimeEngine::getInputShape(size_t index) const {
     if (index < m_impl->inputShapes.size()) {
         return m_impl->inputShapes[index];
+    }
+    return {};
+}
+
+std::vector<int64_t> OnnxRuntimeEngine::getOutputShape(size_t index) const {
+    if (index < m_impl->outputShapes.size()) {
+        return m_impl->outputShapes[index];
     }
     return {};
 }

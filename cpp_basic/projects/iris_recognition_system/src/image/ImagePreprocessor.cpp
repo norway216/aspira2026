@@ -25,7 +25,7 @@ cv::Mat ImagePreprocessor::denoise(const cv::Mat& src, int kernelSize) {
 
 cv::Mat ImagePreprocessor::resizeTo(const cv::Mat& src, int width, int height) {
     cv::Mat result;
-    cv::resize(src, result, cv::Size(width, height), 0, 0, cv::INTER_LANCZOS4);
+    cv::resize(src, result, cv::Size(width, height), 0, 0, cv::INTER_LINEAR);
     return result;
 }
 

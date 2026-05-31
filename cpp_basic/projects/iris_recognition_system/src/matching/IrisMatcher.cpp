@@ -81,37 +81,50 @@ float IrisMatcher::hammingDistance(const std::vector<uint8_t>& codeA,
     size_t validBits   = 0;
     size_t differBits  = 0;
 
-    for (size_t byteIdx = 0; byteIdx < numBytes; ++byteIdx) {
-        for (int bit = 0; bit < 8; ++bit) {
-            size_t bitPos = byteIdx * 8 + bit;
+    // Fast path: no rotation shift, use byte-level XOR + popcount (SIMD-friendly)
+    if (shiftBits == 0) {
+        bool hasMasks = !maskA.empty() || !maskB.empty();
+        for (size_t i = 0; i < numBytes; ++i) {
+            uint8_t commonMask = 0xFF;
+            if (hasMasks) {
+                uint8_t ma = (i < maskA.size()) ? maskA[i] : 0xFF;
+                uint8_t mb = (i < maskB.size()) ? maskB[i] : 0xFF;
+                commonMask = ma & mb;
+            }
+            if (commonMask == 0) continue;
+            uint8_t diff = (codeA[i] ^ codeB[i]) & commonMask;
+            differBits += static_cast<size_t>(
+                __builtin_popcount(static_cast<unsigned int>(diff)));
+            validBits  += static_cast<size_t>(
+                __builtin_popcount(static_cast<unsigned int>(commonMask)));
+        }
+    } else {
+        // Rotation shift path: bit-by-bit with shift (rarely used; only during
+        // rotation-compensated matching across the 33-shift loop)
+        for (size_t byteIdx = 0; byteIdx < numBytes; ++byteIdx) {
+            for (int bit = 0; bit < 8; ++bit) {
+                size_t bitPos = byteIdx * 8 + bit;
+                int shiftedPos = static_cast<int>(bitPos) + shiftBits;
+                if (shiftedPos < 0 || shiftedPos >= static_cast<int>(totalBits)) continue;
+                size_t shiftedByte = static_cast<size_t>(shiftedPos) / 8;
+                int shiftedBit    = shiftedPos % 8;
 
-            // Apply rotation shift
-            int shiftedPos = static_cast<int>(bitPos) + shiftBits;
-            if (shiftedPos < 0 || shiftedPos >= static_cast<int>(totalBits)) continue;
-            size_t shiftedByte = shiftedPos / 8;
-            int shiftedBit    = shiftedPos % 8;
+                bool validA = maskA.empty() ||
+                    (byteIdx < maskA.size() && (maskA[byteIdx] & (1 << bit)));
+                bool validB = maskB.empty() ||
+                    (shiftedByte < maskB.size() && (maskB[shiftedByte] & (1 << shiftedBit)));
 
-            // Check masks
-            bool validA = maskA.empty() ||
-                (byteIdx < maskA.size() && (maskA[byteIdx] & (1 << bit)));
-            bool validB = maskB.empty() ||
-                (shiftedByte < maskB.size() && (maskB[shiftedByte] & (1 << shiftedBit)));
+                if (!validA || !validB) continue;
+                ++validBits;
 
-            if (!validA || !validB) continue;
-
-            ++validBits;
-
-            uint8_t bitA = (codeA[byteIdx] >> bit) & 1;
-            uint8_t bitB = (codeB[shiftedByte] >> shiftedBit) & 1;
-
-            if (bitA != bitB) {
-                ++differBits;
+                uint8_t bitA = (codeA[byteIdx] >> bit) & 1;
+                uint8_t bitB = (codeB[shiftedByte] >> shiftedBit) & 1;
+                if (bitA != bitB) ++differBits;
             }
         }
     }
 
     if (validBits == 0) return 1.0f;
-
     return static_cast<float>(differBits) / static_cast<float>(validBits);
 }
 

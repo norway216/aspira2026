@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/RecognitionResult.h"
+#include <deque>
 #include <opencv2/core.hpp>
 #include <vector>
 
@@ -21,7 +22,7 @@ public:
 
 private:
     IrisLivenessDetector& m_detector;
-    std::vector<cv::Mat> m_recentFrames;
+    std::deque<cv::Mat> m_recentFrames;
     static constexpr size_t MAX_HISTORY = 16;
 };
 

@@ -10,7 +10,45 @@ IrisFeatureExtractor::IrisFeatureExtractor() = default;
 
 bool IrisFeatureExtractor::initialize(const std::string& /*modelPath*/) {
     m_initialized = true;
+    buildGaborCache();
     return true;
+}
+
+void IrisFeatureExtractor::buildGaborCache() {
+    // Skip if already cached with same parameters
+    if (!m_gaborCache.empty() &&
+        m_cachedOrientations == m_numOrientations &&
+        m_cacheSigma  == 5.0f &&
+        m_cacheLambda == 8.0f &&
+        m_cacheGamma  == 0.5f &&
+        m_cacheKernelSize == 21) {
+        return;
+    }
+
+    m_gaborCache.clear();
+    m_gaborCache.reserve(m_numOrientations);
+
+    float lambda  = 8.0f;
+    float sigma   = 5.0f;
+    float gamma   = 0.5f;
+    int kernelSize = 21;
+
+    for (int orient = 0; orient < m_numOrientations; ++orient) {
+        float theta = static_cast<float>(orient) * static_cast<float>(M_PI)
+                      / static_cast<float>(m_numOrientations);
+
+        GaborKernelPair pair;
+        pair.even = createGaborKernel(kernelSize, sigma, theta, lambda, gamma, 0.0f);
+        pair.odd  = createGaborKernel(kernelSize, sigma, theta, lambda, gamma,
+                                       static_cast<float>(M_PI_2));
+        m_gaborCache.push_back(std::move(pair));
+    }
+
+    m_cachedOrientations = m_numOrientations;
+    m_cacheSigma   = sigma;
+    m_cacheLambda  = lambda;
+    m_cacheGamma   = gamma;
+    m_cacheKernelSize = kernelSize;
 }
 
 IrisEmbedding IrisFeatureExtractor::extract(const NormalizedIris& normalized) {
@@ -111,29 +149,21 @@ void IrisFeatureExtractor::extractIrisCode(const cv::Mat& normalizedIris,
     irisCode.assign(totalBytes, 0);
     maskCode.assign(totalBytes, 0);
 
-    // Gabor parameters
-    float lambda  = 8.0f;   // wavelength
-    float sigma   = 5.0f;   // Gaussian envelope
-    float gamma   = 0.5f;   // spatial aspect ratio
-    float psi     = 0.0f;   // phase offset (0 for even, π/2 for odd)
+    // Build kernel cache on first use if not already done
+    if (m_gaborCache.empty()) {
+        buildGaborCache();
+    }
 
-    int kernelSize = 21;
     size_t bitIndex = 0;
 
     for (int orient = 0; orient < m_numOrientations; ++orient) {
-        float theta = static_cast<float>(orient) * static_cast<float>(M_PI)
-                      / static_cast<float>(m_numOrientations);
-
-        // Even-symmetric Gabor filter (real part, psi=0)
-        cv::Mat gaborEven = createGaborKernel(kernelSize, sigma, theta, lambda, gamma, 0.0f);
-        // Odd-symmetric Gabor filter (imaginary part, psi=π/2)
-        cv::Mat gaborOdd  = createGaborKernel(kernelSize, sigma, theta, lambda, gamma,
-                                               static_cast<float>(M_PI_2));
+        // Use precomputed Gabor kernels from cache (avoid per-frame creation)
+        const auto& cached = m_gaborCache[static_cast<size_t>(orient)];
 
         // Convolve the normalized iris with both filters
         cv::Mat responseEven, responseOdd;
-        cv::filter2D(normalizedIris, responseEven, CV_32F, gaborEven);
-        cv::filter2D(normalizedIris, responseOdd,  CV_32F, gaborOdd);
+        cv::filter2D(normalizedIris, responseEven, CV_32F, cached.even);
+        cv::filter2D(normalizedIris, responseOdd,  CV_32F, cached.odd);
 
         // Phase quantization at downsampled positions
         for (int r = 0; r < codeRows; ++r) {

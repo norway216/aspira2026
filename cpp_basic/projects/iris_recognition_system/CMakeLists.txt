@@ -58,10 +58,12 @@ set(SOURCES
     src/service/LivenessService.cpp
     src/service/AuditService.cpp
     src/evaluation/Benchmark.cpp
+    src/evaluation/FpsBenchmark.cpp
 )
 
 if(EXISTS "${ONNXRUNTIME_ROOT}/include/onnxruntime_cxx_api.h")
     list(APPEND SOURCES src/nn/OnnxRuntimeEngine.cpp)
+    list(APPEND SOURCES src/model/YoloDetector.cpp)
 endif()
 
 # ── Executable ─────────────────────────────────────────────────
@@ -99,8 +101,17 @@ endif()
 # ── Compiler flags ─────────────────────────────────────────────
 target_compile_options(iris_app PRIVATE
     -Wall -Wextra -Wpedantic
-    $<$<CONFIG:Release>:-O2>
-    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>:-O2 -DNDEBUG>
+    $<$<CONFIG:Debug>:-g3 -ggdb -O0 -fno-omit-frame-pointer -DDEBUG>
+    $<$<CONFIG:RelWithDebInfo>:-g3 -ggdb -O2 -fno-omit-frame-pointer>
 )
+
+# Debug build: add address sanitizer if available (GCC/Clang)
+option(ENABLE_ASAN "Enable AddressSanitizer in Debug builds" OFF)
+if(ENABLE_ASAN AND CMAKE_BUILD_TYPE MATCHES "Debug")
+    target_compile_options(iris_app PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+    target_link_options(iris_app PRIVATE -fsanitize=address)
+    message(STATUS "AddressSanitizer enabled for Debug build")
+endif()
 
 message(STATUS "Iris Recognition System configured successfully")

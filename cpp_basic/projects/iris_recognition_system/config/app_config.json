@@ -11,7 +11,17 @@
     "iris_segmenter": "models/iris_segmenter.onnx",
     "iris_feature": "models/iris_feature.onnx",
     "iris_liveness": "models/iris_liveness.onnx",
-    "haar_cascade_eye": ""
+    "haar_cascade_eye": "",
+    "yolo": {
+      "enabled": false,
+      "model_path": "models/face_detector.onnx",
+      "input_width": 640,
+      "input_height": 640,
+      "confidence_threshold": 0.5,
+      "nms_threshold": 0.45,
+      "use_gpu": false,
+      "num_threads": 4
+    }
   },
   "thresholds": {
     "quality": 0.35,
