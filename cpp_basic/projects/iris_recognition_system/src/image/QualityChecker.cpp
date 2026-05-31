@@ -54,15 +54,11 @@ float QualityChecker::computeBrightness(const cv::Mat& gray) {
 
 float QualityChecker::estimateOcclusion(const cv::Mat& gray) {
     // Count very dark pixels (potential eyelashes/eyelid occlusion)
-    int darkPixels = 0;
+    // Optimized: use cv::threshold + countNonZero (SIMD-accelerated)
+    cv::Mat binary;
+    cv::threshold(gray, binary, 40, 255, cv::THRESH_BINARY_INV);
+    int darkPixels = cv::countNonZero(binary);
     int totalPixels = gray.rows * gray.cols;
-
-    for (int r = 0; r < gray.rows; ++r) {
-        const uint8_t* row = gray.ptr<uint8_t>(r);
-        for (int c = 0; c < gray.cols; ++c) {
-            if (row[c] < 40) ++darkPixels;
-        }
-    }
 
     return std::min(1.0f, static_cast<float>(darkPixels) / (totalPixels * 0.3f));
 }

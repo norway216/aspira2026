@@ -50,6 +50,9 @@ public:
     /// Get input shape from loaded model
     std::vector<int64_t> getInputShape(size_t index = 0) const;
 
+    /// Get output shape from loaded model (for multi-output models like YOLOv5)
+    std::vector<int64_t> getOutputShape(size_t index = 0) const;
+
 private:
     struct Impl;
     std::unique_ptr<Impl> m_impl;

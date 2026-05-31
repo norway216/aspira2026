@@ -1,6 +1,7 @@
 #pragma once
 
 #include "domain/RecognitionResult.h"
+#include <deque>
 #include <memory>
 #include <string>
 #include <opencv2/core.hpp>
@@ -53,7 +54,7 @@ private:
     LivenessResult m_lastLiveness;
     MatchResult m_lastMatch;
 
-    std::vector<cv::Mat> m_recentFrames;
+    std::deque<cv::Mat> m_recentFrames;
 };
 
 } // namespace iris
