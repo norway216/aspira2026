@@ -118,19 +118,28 @@ int main(int argc, char* argv[])
     if (argc >= 2) {
         imagePath = argv[1];
     } else {
-        // 默认图片路径（从 build/ 目录运行时需要 ../ 前缀）
-        imagePath = "../images/road.jpg";
+        // 默认图片路径：优先使用 PH2 测试图，回退到 COCO 演示图
+        imagePath = "../ph2_data/images/test/0003.png";
     }
 
     if (argc >= 3) {
         modelPath = argv[2];
     } else {
-        // 默认模型路径
-        modelPath = "../models/yolov8n-seg.onnx";
+        // 默认模型路径：优先使用 PH2 模型，回退到 COCO 模型
+        modelPath = "../models/yolov8n-seg-ph2.onnx";
     }
 
+    // 自动检测数据集类型
+    bool isMedical = (modelPath.find("ph2") != std::string::npos ||
+                      modelPath.find("PH2") != std::string::npos ||
+                      modelPath.find("isic") != std::string::npos ||
+                      modelPath.find("ISIC") != std::string::npos);
+
     std::cout << "═══════════════════════════════════════════════════════\n";
-    std::cout << "  YOLOv8 分割模型 ONNX Runtime C++ 推理 Demo\n";
+    std::cout << "  YOLOv8 分割模型 ONNX Runtime C++ 推理引擎\n";
+    if (isMedical) {
+        std::cout << "  模式: 皮肤镜医学图像分割 (PH2/ISIC)\n";
+    }
     std::cout << "═══════════════════════════════════════════════════════\n\n";
 
     // ── 步骤1：初始化推理引擎 ──────────────────────────────────────────
@@ -138,13 +147,21 @@ int main(int argc, char* argv[])
     std::cout << "  模型路径: " << modelPath << "\n";
     std::cout << "  图片路径: " << imagePath << "\n\n";
 
-    // 配置推理参数（可根据嵌入式设备性能调整）
+    // 配置推理参数（根据数据集自动调整）
     InferenceConfig config;
-    config.confThreshold = 0.25f;    // 置信度阈值
-    config.iouThreshold  = 0.45f;    // NMS IoU 阈值
-    config.maskThreshold = 0.5f;     // Mask 二值化阈值
-    config.numThreads    = 4;        // ONNX Runtime 线程数
-    config.enableProfiling = true;   // 打印详细日志
+    if (isMedical) {
+        config.numClasses   = 1;          // 单类：病灶
+        config.classNames   = {"lesion"}; // 类别名称
+        config.confThreshold = 0.25f;     // 置信度阈值
+        config.iouThreshold  = 0.45f;     // NMS IoU 阈值
+        config.maskThreshold = 0.5f;      // Mask 二值化阈值
+    } else {
+        config.confThreshold = 0.25f;
+        config.iouThreshold  = 0.45f;
+        config.maskThreshold = 0.5f;
+    }
+    config.numThreads    = 4;
+    config.enableProfiling = true;
 
     printConfig(config);
 

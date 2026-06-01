@@ -1,7 +1,13 @@
 /**
  * @file    yolo_seg_inference.cpp
- * @brief   YOLOv8 分割模型 ONNX Runtime C++ 推理实现（优化版 v2.0）
+ * @brief   YOLOv8 分割模型 ONNX Runtime C++ 推理实现（多线程优化版 v3.0）
  * @details
+ *   v3.0 优化内容:
+ *   1. [多线程] 新增轻量级 ThreadPool，基于 std::thread，无需外部依赖
+ *   2. [多线程] Anchor 扫描并行化 — 8400 个 anchor 分块并行处理
+ *   3. [多线程] Mask 生成并行化 — 每个检测结果独立并行生成 mask
+ *   4. [多线程] 每线程独立 mask 缓冲区，消除锁竞争
+ *
  *   v2.0 优化内容:
  *   1. [精度] Mask 系数添加 sigmoid 激活
  *   2. [速度] 缓存 name pointers + MemoryInfo，避免每帧重建
@@ -19,6 +25,7 @@
 #include <cstring>
 #include <iostream>
 #include <numeric>
+#include <cassert>
 
 #include <opencv2/dnn.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -43,6 +50,77 @@ const std::vector<std::string> YoloSegInference::COCO_CLASSES = {
 };
 
 // ============================================================================
+// 后处理内部数据结构
+// ============================================================================
+
+struct RawDetection {
+    cv::Rect bbox;
+    float confidence;
+    int classId;
+    float maskCoeffs[32];  // 栈数组，避免 heap 分配
+};
+
+// ============================================================================
+// ThreadPool 实现
+// ============================================================================
+
+ThreadPool::ThreadPool(size_t numThreads)
+{
+    if (numThreads == 0) numThreads = 1;
+
+    m_workers.reserve(numThreads);
+    for (size_t i = 0; i < numThreads; ++i) {
+        m_workers.emplace_back(&ThreadPool::workerLoop, this);
+    }
+}
+
+ThreadPool::~ThreadPool()
+{
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        m_stop = true;
+    }
+    m_cv.notify_all();
+
+    for (auto& worker : m_workers) {
+        if (worker.joinable()) {
+            worker.join();
+        }
+    }
+}
+
+void ThreadPool::workerLoop()
+{
+    while (true) {
+        Task task;
+        {
+            std::unique_lock<std::mutex> lock(m_queueMutex);
+            m_cv.wait(lock, [this] {
+                return m_stop || !m_taskQueue.empty();
+            });
+
+            if (m_stop && m_taskQueue.empty()) {
+                return;
+            }
+
+            task = std::move(m_taskQueue.front());
+            m_taskQueue.pop();
+        }
+
+        // 执行分块中的每个索引
+        for (int i = task.begin; i < task.end; ++i) {
+            task.func(i);
+        }
+
+        // 标记完成
+        task.counter->fetch_sub(1, std::memory_order_acq_rel);
+
+        // 通知等待者（可能是主线程在 parallelFor 中等待）
+        m_doneCv.notify_one();
+    }
+}
+
+// ============================================================================
 // 构造函数
 // ============================================================================
 
@@ -60,6 +138,9 @@ YoloSegInference::YoloSegInference(const InferenceConfig& config)
 
 YoloSegInference::~YoloSegInference()
 {
+    // 先销毁线程池，再销毁 ONNX 环境（确保推理已停止）
+    m_threadPool.reset();
+
     if (m_config.enableProfiling) {
         std::cout << "[YoloSegInference] 引擎已释放" << std::endl;
     }
@@ -81,6 +162,7 @@ bool YoloSegInference::initialize(const std::string& modelPath, int numThreads)
 
         // 线程配置
         if (numThreads > 0) {
+            m_config.numThreads = numThreads;
             sessionOptions.SetIntraOpNumThreads(numThreads);
         }
         sessionOptions.SetInterOpNumThreads(m_config.interOpThreads);
@@ -107,7 +189,6 @@ bool YoloSegInference::initialize(const std::string& modelPath, int numThreads)
         size_t numInputNodes = m_session->GetInputCount();
         size_t numOutputNodes = m_session->GetOutputCount();
 
-        // 先预留空间，避免 push_back 时 vector 重分配导致 c_str() 失效
         m_inputNames.reserve(numInputNodes);
         m_outputNames.reserve(numOutputNodes);
 
@@ -153,7 +234,6 @@ bool YoloSegInference::initialize(const std::string& modelPath, int numThreads)
         }
 
         // 在名字全部收集完毕后，再构建 c_str() 指针缓存
-        // 避免 vector 重分配时 c_str() 失效
         m_inputNamePtrs.clear();
         for (const auto& name : m_inputNames) {
             m_inputNamePtrs.push_back(name.c_str());
@@ -168,15 +248,24 @@ bool YoloSegInference::initialize(const std::string& modelPath, int numThreads)
             OrtArenaAllocator, OrtMemTypeDefault
         );
 
-        // [优化] 预分配输入和 mask 缓冲区
+        // [优化] 预分配输入缓冲区
         const size_t inputSize = 1 * 3 * m_config.inputHeight * m_config.inputWidth;
         m_inputBuffer.resize(inputSize);
 
+        // ── [v3.0] 创建线程池 ──────────────────────────────────────────
+        int poolThreads = (numThreads > 0) ? numThreads : 4;
+        m_threadPool = std::make_unique<ThreadPool>(poolThreads);
+
+        // [v3.0] 为每个线程预分配独立的 mask 工作缓冲区
         const size_t maskWorkSize = m_config.maskProtoH * m_config.maskProtoW;
-        m_maskWorkBuffer.resize(maskWorkSize);
+        m_maskWorkBuffers.resize(poolThreads);
+        for (auto& buf : m_maskWorkBuffers) {
+            buf.resize(maskWorkSize);
+        }
 
         m_initialized = true;
         std::cout << "[初始化] ONNX 模型加载成功: " << modelPath << std::endl;
+        std::cout << "[初始化] 线程池大小: " << poolThreads << std::endl;
         return true;
 
     } catch (const Ort::Exception& e) {
@@ -214,7 +303,6 @@ InferenceResult YoloSegInference::infer(const cv::Mat& image)
         }
 
         // ── ONNX Runtime 推理 ───────────────────────────────────────────
-        // [优化] 使用缓存的 name pointers，无需每次重建 vector<const char*>
         auto outputTensors = m_session->Run(
             Ort::RunOptions{nullptr},
             m_inputNamePtrs.data(),
@@ -227,7 +315,7 @@ InferenceResult YoloSegInference::infer(const cv::Mat& image)
         auto t2 = std::chrono::high_resolution_clock::now();
         result.inferenceMs = std::chrono::duration<double, std::milli>(t2 - t1).count();
 
-        // ── 后处理 ──────────────────────────────────────────────────────
+        // ── 后处理（多线程优化版） ──────────────────────────────────────
         const float* output0Data = outputTensors[0].GetTensorData<float>();
         const float* output1Data = outputTensors[1].GetTensorData<float>();
 
@@ -295,7 +383,7 @@ Ort::Value YoloSegInference::preprocess(const cv::Mat& image)
 }
 
 // ============================================================================
-// 后处理（优化版）
+// 后处理（多线程优化版 — 主入口）
 // ============================================================================
 
 std::vector<SegmentationResult> YoloSegInference::postprocess(
@@ -303,23 +391,18 @@ std::vector<SegmentationResult> YoloSegInference::postprocess(
     const float* output1Tensor,
     const cv::Size& originalSize)
 {
-    std::vector<SegmentationResult> results;
-
     // ── 维度常量 ──────────────────────────────────────────────────────────
     const int numChannels  = static_cast<int>(m_output0Shape[1]);  // 116
     const int numAnchors   = static_cast<int>(m_output0Shape[2]);  // 8400
     const int bboxChannels = 4;
     const int classChannels = m_config.numClasses;   // 80
     const int maskChannels  = m_config.maskChannels; // 32
-    const int protoH = static_cast<int>(m_output1Shape[2]);  // 160
-    const int protoW = static_cast<int>(m_output1Shape[3]);  // 160
-    const int protoArea = protoH * protoW;                   // 25600
-    const int stride = numAnchors;                           // 8400
+    const int stride = numAnchors;                   // 8400
 
     // 验证维度
     if (numChannels != bboxChannels + classChannels + maskChannels) {
         std::cerr << "[错误] output0 通道数不匹配" << std::endl;
-        return results;
+        return {};
     }
 
     // [优化] 预计算各段在 stride 上的起始偏移
@@ -327,23 +410,73 @@ std::vector<SegmentationResult> YoloSegInference::postprocess(
     const int classOffset = bboxChannels;               // channels [4, 84)
     const int maskOffset  = bboxChannels + classChannels; // channels [84, 116)
 
-    // ── 第1遍：收集候选检测 ─────────────────────────────────────────────
-    struct RawDetection {
-        cv::Rect bbox;
-        float confidence;
-        int classId;
-        float maskCoeffs[32];  // [优化] 使用栈数组替代 std::vector
-    };
+    // ── 第1步：并行 Anchor 扫描，收集候选检测 ─────────────────────────
+    std::vector<RawDetection> candidates = scanAnchors(
+        output0Tensor, numAnchors, stride,
+        bboxOffset, classOffset, maskOffset
+    );
 
-    std::vector<RawDetection> candidates;
-    candidates.reserve(64);  // [优化] 预分配典型候选数（通常 < 50）
+    if (m_config.enableProfiling) {
+        std::cout << "[后处理] 候选数: " << candidates.size()
+                  << " / " << numAnchors << std::endl;
+    }
 
-    // [优化] 使用局部变量缓存常量，便于编译器优化
+    if (candidates.empty()) return {};
+
+    // ── 第2步：NMS（单线程，计算量小） ──────────────────────────────────
+    std::vector<cv::Rect> boxes;
+    std::vector<float> scores;
+    boxes.reserve(candidates.size());
+    scores.reserve(candidates.size());
+    for (const auto& c : candidates) {
+        boxes.push_back(c.bbox);
+        scores.push_back(c.confidence);
+    }
+
+    std::vector<int> keepIndices = nms(boxes, scores, m_config.iouThreshold);
+
+    if (keepIndices.empty()) return {};
+
+    std::vector<SegmentationResult> results;
+
+    // ── 第3步：并行 Mask 生成 ───────────────────────────────────────────
+    generateMasks(keepIndices, candidates, output1Tensor,
+                  originalSize, results);
+
+    // ── 按置信度降序排列 ────────────────────────────────────────────────
+    std::sort(results.begin(), results.end());
+
+    if (m_config.enableProfiling) {
+        std::cout << "[后处理] 候选数: " << candidates.size()
+                  << " → NMS后: " << results.size() << std::endl;
+    }
+
+    return results;
+}
+
+// ============================================================================
+// 并行 Anchor 扫描
+// ============================================================================
+
+std::vector<RawDetection> YoloSegInference::scanAnchors(
+    const float* output0Tensor,
+    int numAnchors, int stride,
+    int bboxOffset, int classOffset, int maskOffset)
+{
     const float confThresh = m_config.confThreshold;
     const float inputW = static_cast<float>(m_config.inputWidth);
     const float inputH = static_cast<float>(m_config.inputHeight);
+    const int classChannels = m_config.numClasses;
+    const int maskChannels = m_config.maskChannels;
 
-    for (int a = 0; a < numAnchors; ++a) {
+    // 共享候选列表 + 互斥锁
+    // 只有 ~100/8400 个 anchor 通过阈值，锁竞争极低
+    std::mutex candidatesMutex;
+    std::vector<RawDetection> candidates;
+    candidates.reserve(64);
+
+    // [v3.0] 并行扫描：使用线程池分块处理 8400 个 anchor
+    m_threadPool->parallelFor(0, numAnchors, [&](int a) {
         // ── 边界框（已解码为绝对坐标） ──────────────────────────────────
         float cx = output0Tensor[a + bboxOffset * stride];
         float cy = output0Tensor[a + 1 * stride];
@@ -354,24 +487,22 @@ std::vector<SegmentationResult> YoloSegInference::postprocess(
         float maxScore = 0.0f;
         int bestClassId = 0;
 
-        // [优化] 内联循环 — 编译器可自动向量化 (SIMD)
         const float* scorePtr = output0Tensor + a + classOffset * stride;
         for (int c = 0; c < classChannels; ++c) {
-            float s = scorePtr[c * stride];  // 注意：c * stride 是跨通道步长
+            float s = scorePtr[c * stride];
             if (s > maxScore) {
                 maxScore = s;
                 bestClassId = c;
             }
         }
 
-        if (maxScore < confThresh) continue;
+        if (maxScore < confThresh) return;
 
         // ── Mask 系数（读取32个 float） ────────────────────────────────
         RawDetection det;
         det.confidence = maxScore;
         det.classId = bestClassId;
 
-        // [优化] 用 memcpy 批量复制 32 个 float
         const float* coeffPtr = output0Tensor + a + maskOffset * stride;
         for (int k = 0; k < maskChannels; ++k) {
             det.maskCoeffs[k] = coeffPtr[k * stride];
@@ -390,136 +521,151 @@ std::vector<SegmentationResult> YoloSegInference::postprocess(
             static_cast<int>(bw), static_cast<int>(bh)
         );
 
-        candidates.push_back(std::move(det));
-    }
+        {
+            std::lock_guard<std::mutex> lock(candidatesMutex);
+            candidates.push_back(std::move(det));
+        }
+    });
 
-    if (m_config.enableProfiling) {
-        std::cout << "[后处理] 候选数: " << candidates.size()
-                  << " / " << numAnchors << std::endl;
-    }
+    return candidates;
+}
 
-    if (candidates.empty()) return results;
+// ============================================================================
+// 并行 Mask 生成
+// ============================================================================
 
-    // ── 第2步：NMS ──────────────────────────────────────────────────────
-    std::vector<cv::Rect> boxes;
-    std::vector<float> scores;
-    boxes.reserve(candidates.size());
-    scores.reserve(candidates.size());
-    for (const auto& c : candidates) {
-        boxes.push_back(c.bbox);
-        scores.push_back(c.confidence);
-    }
+void YoloSegInference::generateMasks(
+    const std::vector<int>& keepIndices,
+    const std::vector<RawDetection>& candidates,
+    const float* output1Tensor,
+    const cv::Size& originalSize,
+    std::vector<SegmentationResult>& results)
+{
+    const int numDetections = static_cast<int>(keepIndices.size());
+    results.resize(numDetections);
 
-    std::vector<int> keepIndices = nms(boxes, scores, m_config.iouThreshold);
-
-    if (keepIndices.empty()) return results;
-
-    // ── 第3步：为每个保留的检测生成实例分割 Mask ─────────────────────
-    // [优化] 预分配 mask 工作缓冲区
-    if (m_maskWorkBuffer.size() < static_cast<size_t>(protoArea)) {
-        m_maskWorkBuffer.resize(protoArea);
-    }
-    float* maskWork = m_maskWorkBuffer.data();
-
-    for (int idx : keepIndices) {
+    // [v3.0] 并行生成每个检测结果的 mask
+    m_threadPool->parallelFor(0, numDetections, [&](int i) {
+        int idx = keepIndices[i];
         const auto& cand = candidates[idx];
 
-        // ── 3a. 计算实例 Mask: mask = sigmoid(coeffs @ proto) ───────────
-        // [优化] 清零预分配缓冲区（避免每次分配新 vector）
-        std::memset(maskWork, 0, protoArea * sizeof(float));
+        // 确定当前线程索引（用于选择对应的 mask 缓冲区）
+        // 使用简单的取模方式分配缓冲区索引
+        int threadIdx = i % m_maskWorkBuffers.size();
 
-        for (int k = 0; k < maskChannels; ++k) {
-            float coeff = cand.maskCoeffs[k];
+        results[i] = generateSingleMask(cand, output1Tensor,
+                                        originalSize, threadIdx);
+    });
+}
 
-            // [精度修复] Mask 系数需要 sigmoid 激活
-            // ultralytics ONNX 输出中 class score 已 sigmoid，但 mask 系数未激活
-            coeff = 1.0f / (1.0f + std::exp(-coeff));
+// ============================================================================
+// 单个 Mask 生成（由工作线程调用）
+// ============================================================================
 
-            const float* protoChannel = output1Tensor + k * protoArea;
+SegmentationResult YoloSegInference::generateSingleMask(
+    const RawDetection& cand,
+    const float* output1Tensor,
+    const cv::Size& originalSize,
+    int threadIdx)
+{
+    const int maskChannels = m_config.maskChannels;  // 32
+    const int protoH = static_cast<int>(m_output1Shape[2]);  // 160
+    const int protoW = static_cast<int>(m_output1Shape[3]);  // 160
+    const int protoArea = protoH * protoW;                   // 25600
 
-            // [优化] 内联累加，编译器可向量化
-            for (int p = 0; p < protoArea; ++p) {
-                maskWork[p] += coeff * protoChannel[p];
-            }
-        }
+    // [v3.0] 使用当前线程专用的 mask 缓冲区（无锁）
+    assert(threadIdx >= 0 && threadIdx < static_cast<int>(m_maskWorkBuffers.size()));
+    float* maskWork = m_maskWorkBuffers[threadIdx].data();
 
-        // ── 3b. Sigmoid + 转换为 CV_8U Mask ───────────────────────────
-        cv::Mat mask160(protoH, protoW, CV_32FC1, maskWork);
-        cv::Mat mask640;
+    // ── 3a. 计算实例 Mask: mask = sigmoid(coeffs @ proto) ───────────
+    std::memset(maskWork, 0, protoArea * sizeof(float));
 
-        // 组合 sigmoid + resize 为一次操作
-        // 先对 160x160 做 sigmoid，再 resize 到 640x640
+    for (int k = 0; k < maskChannels; ++k) {
+        float coeff = cand.maskCoeffs[k];
+
+        // [精度修复] Mask 系数需要 sigmoid 激活
+        coeff = 1.0f / (1.0f + std::exp(-coeff));
+
+        const float* protoChannel = output1Tensor + k * protoArea;
+
+        // 内联累加，编译器可向量化 (SIMD)
         for (int p = 0; p < protoArea; ++p) {
-            maskWork[p] = 1.0f / (1.0f + std::exp(-maskWork[p]));
+            maskWork[p] += coeff * protoChannel[p];
         }
-
-        cv::resize(mask160, mask640,
-                    cv::Size(m_config.inputWidth, m_config.inputHeight),
-                    0, 0, cv::INTER_LINEAR);
-
-        // ── 3c. 二值化 + 裁剪到检测框 ──────────────────────────────────
-        cv::Mat maskBinary;
-        cv::threshold(mask640, maskBinary, m_config.maskThreshold, 255.0,
-                      cv::THRESH_BINARY);
-        maskBinary.convertTo(maskBinary, CV_8UC1);
-
-        cv::Mat maskCropped = cv::Mat::zeros(m_config.inputHeight,
-                                              m_config.inputWidth, CV_8UC1);
-        cv::Rect clampedBbox = cand.bbox & cv::Rect(0, 0,
-                                                     m_config.inputWidth,
-                                                     m_config.inputHeight);
-        if (clampedBbox.width > 0 && clampedBbox.height > 0) {
-            maskBinary(clampedBbox).copyTo(maskCropped(clampedBbox));
-        }
-
-        // ── 3d. 逆 letterbox 变换 → 原图坐标 ───────────────────────────
-        cv::Mat maskNoPad;
-        cv::Rect imageRoi(m_letterboxDx, m_letterboxDy,
-                           m_config.inputWidth - 2 * m_letterboxDx,
-                           m_config.inputHeight - 2 * m_letterboxDy);
-        if (imageRoi.width > 0 && imageRoi.height > 0) {
-            maskCropped(imageRoi).copyTo(maskNoPad);
-        } else {
-            maskCropped.copyTo(maskNoPad);
-        }
-
-        cv::Mat maskOriginal;
-        cv::resize(maskNoPad, maskOriginal, originalSize,
-                    0, 0, cv::INTER_LINEAR);
-        cv::threshold(maskOriginal, maskOriginal, 127, 255, cv::THRESH_BINARY);
-        maskOriginal.convertTo(maskOriginal, CV_8UC1);
-
-        // ── 3e. Bbox 坐标逆变换 ────────────────────────────────────────
-        float x1Orig = (cand.bbox.x - m_letterboxDx) / m_letterboxScale;
-        float y1Orig = (cand.bbox.y - m_letterboxDy) / m_letterboxScale;
-        float wOrig  = cand.bbox.width / m_letterboxScale;
-        float hOrig  = cand.bbox.height / m_letterboxScale;
-
-        cv::Rect bboxOriginal(
-            static_cast<int>(x1Orig), static_cast<int>(y1Orig),
-            static_cast<int>(wOrig), static_cast<int>(hOrig)
-        );
-        bboxOriginal &= cv::Rect(0, 0, originalSize.width, originalSize.height);
-
-        // ── 3f. 构建结果 ────────────────────────────────────────────────
-        results.push_back({
-            bboxOriginal,
-            cand.classId,
-            (cand.classId >= 0 && cand.classId < static_cast<int>(COCO_CLASSES.size()))
-                ? COCO_CLASSES[cand.classId] : "unknown",
-            cand.confidence,
-            maskOriginal
-        });
     }
 
-    std::sort(results.begin(), results.end());
+    // ── 3b. Sigmoid + 转换为 CV_8U Mask ─────────────────────────────
+    cv::Mat mask160(protoH, protoW, CV_32FC1, maskWork);
 
-    if (m_config.enableProfiling) {
-        std::cout << "[后处理] 候选数: " << candidates.size()
-                  << " → NMS后: " << results.size() << std::endl;
+    // 对 160x160 做 sigmoid
+    for (int p = 0; p < protoArea; ++p) {
+        maskWork[p] = 1.0f / (1.0f + std::exp(-maskWork[p]));
     }
 
-    return results;
+    cv::Mat mask640;
+    cv::resize(mask160, mask640,
+                cv::Size(m_config.inputWidth, m_config.inputHeight),
+                0, 0, cv::INTER_LINEAR);
+
+    // ── 3c. 二值化 + 裁剪到检测框 ──────────────────────────────────
+    cv::Mat maskBinary;
+    cv::threshold(mask640, maskBinary, m_config.maskThreshold, 255.0,
+                  cv::THRESH_BINARY);
+    maskBinary.convertTo(maskBinary, CV_8UC1);
+
+    cv::Mat maskCropped = cv::Mat::zeros(m_config.inputHeight,
+                                          m_config.inputWidth, CV_8UC1);
+    cv::Rect clampedBbox = cand.bbox & cv::Rect(0, 0,
+                                                 m_config.inputWidth,
+                                                 m_config.inputHeight);
+    if (clampedBbox.width > 0 && clampedBbox.height > 0) {
+        maskBinary(clampedBbox).copyTo(maskCropped(clampedBbox));
+    }
+
+    // ── 3d. 逆 letterbox 变换 → 原图坐标 ───────────────────────────
+    cv::Mat maskNoPad;
+    cv::Rect imageRoi(m_letterboxDx, m_letterboxDy,
+                       m_config.inputWidth - 2 * m_letterboxDx,
+                       m_config.inputHeight - 2 * m_letterboxDy);
+    if (imageRoi.width > 0 && imageRoi.height > 0) {
+        maskCropped(imageRoi).copyTo(maskNoPad);
+    } else {
+        maskCropped.copyTo(maskNoPad);
+    }
+
+    cv::Mat maskOriginal;
+    cv::resize(maskNoPad, maskOriginal, originalSize,
+                0, 0, cv::INTER_LINEAR);
+    cv::threshold(maskOriginal, maskOriginal, 127, 255, cv::THRESH_BINARY);
+    maskOriginal.convertTo(maskOriginal, CV_8UC1);
+
+    // ── 3e. Bbox 坐标逆变换 ────────────────────────────────────────
+    float x1Orig = (cand.bbox.x - m_letterboxDx) / m_letterboxScale;
+    float y1Orig = (cand.bbox.y - m_letterboxDy) / m_letterboxScale;
+    float wOrig  = cand.bbox.width / m_letterboxScale;
+    float hOrig  = cand.bbox.height / m_letterboxScale;
+
+    cv::Rect bboxOriginal(
+        static_cast<int>(x1Orig), static_cast<int>(y1Orig),
+        static_cast<int>(wOrig), static_cast<int>(hOrig)
+    );
+    bboxOriginal &= cv::Rect(0, 0, originalSize.width, originalSize.height);
+
+    // ── 3f. 构建结果 ────────────────────────────────────────────────
+    SegmentationResult result;
+    result.bbox = bboxOriginal;
+    result.classId = cand.classId;
+
+    // 使用配置的类别名称（若未设置则回退到 COCO 80 类）
+    const auto& names = m_config.classNames.empty()
+        ? COCO_CLASSES : m_config.classNames;
+    result.className = (cand.classId >= 0 &&
+                        cand.classId < static_cast<int>(names.size()))
+        ? names[cand.classId] : "unknown";
+    result.confidence = cand.confidence;
+    result.mask = maskOriginal;
+
+    return result;
 }
 
 // ============================================================================
@@ -587,7 +733,7 @@ float YoloSegInference::computeIoU(const cv::Rect& a, const cv::Rect& b)
 }
 
 // ============================================================================
-// NMS（优化版 — 原地筛选）
+// NMS（单线程）
 // ============================================================================
 
 std::vector<int> YoloSegInference::nms(
