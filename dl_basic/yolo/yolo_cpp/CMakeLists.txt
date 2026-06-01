@@ -30,6 +30,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # 输出编译命令行（便于调试）
 # set(CMAKE_VERBOSE_MAKEFILE ON)
 
+# ── 查找线程库（std::thread 需要 pthread） ────────────────────────────
+find_package(Threads REQUIRED)
+
 # ── 查找 OpenCV ────────────────────────────────────────────────────────
 # 使用 CONFIG 模式查找 OpenCV 的 CMake 配置文件
 find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs dnn)
@@ -93,6 +96,7 @@ target_include_directories(yolo_seg_inference PRIVATE
 target_link_libraries(yolo_seg_inference PRIVATE
     ${OpenCV_LIBS}                   # OpenCV 核心库
     onnxruntime                      # ONNX Runtime 推理引擎
+    Threads::Threads                 # pthread（std::thread 依赖）
 )
 
 # ── RPATH 设置 ─────────────────────────────────────────────────────────

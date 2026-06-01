@@ -1,0 +1,7 @@
+# PH2 Dataset Config
+path: /home/sa/Lab/Programming/aspira2026/dl_basic/yolo/yolo_cpp/ph2_data
+train: images/train
+val: images/val
+test: images/test
+nc: 1
+names: ['lesion']
