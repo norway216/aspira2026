@@ -1,0 +1,20 @@
+# AIC8800 USB WiFi - udev rules
+# This rule triggers USB mode switch from storage (5721) to WiFi mode (8D80)
+
+# When the storage device appears, eject it to trigger mode switch
+KERNEL=="sd*", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="5721", \
+    SYMLINK+="aicudisk", \
+    RUN+="/usr/bin/eject /dev/%k"
+
+# When WiFi mode is active, load the driver
+SUBSYSTEM=="usb", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="8d80", \
+    ACTION=="add", \
+    RUN+="/sbin/modprobe aic8800_fdrv"
+
+# Also support other AIC8800 PIDs
+SUBSYSTEM=="usb", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="8800", \
+    RUN+="/sbin/modprobe aic8800_fdrv"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="88dc", \
+    RUN+="/sbin/modprobe aic8800_fdrv"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="a69c", ATTRS{idProduct}=="88dd", \
+    RUN+="/sbin/modprobe aic8800_fdrv"
