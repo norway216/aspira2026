@@ -24,3 +24,6 @@ time=2026-06-04T11:21:26.868+08:00 level=INFO msg=request method=POST path=/api/
 time=2026-06-04T11:21:36.869+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=439.807µs remote=127.0.0.1:49178
 time=2026-06-04T11:21:46.839+08:00 level=INFO msg=request method=GET path=/api/v1/nodes/node-01/policies status=200 duration=355.256µs remote=127.0.0.1:44016
 time=2026-06-04T11:21:46.872+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=363.077µs remote=127.0.0.1:44016
+time=2026-06-04T11:21:56.875+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=446.474µs remote=127.0.0.1:58334
+time=2026-06-04T11:21:59.515+08:00 level=INFO msg="shutting down..."
+time=2026-06-04T11:21:59.515+08:00 level=INFO msg="control center stopped"
