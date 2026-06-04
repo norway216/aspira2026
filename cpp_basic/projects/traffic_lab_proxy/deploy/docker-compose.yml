@@ -1,0 +1,127 @@
+version: "3.9"
+
+services:
+  # ── Control Center ──────────────────────────────────
+  control-center:
+    build:
+      context: ..
+      dockerfile: cmd/control-center/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      LISTEN_ADDR: ":8080"
+      DATABASE_DRIVER: sqlite
+      DATABASE_DSN: /data/traffic_lab.db
+      ADMIN_USER: admin
+      ADMIN_PASS: admin123
+      SESSION_SECRET: change-me-to-random-string
+      SCHEDULER_STRATEGY: composite
+      NODE_STALE_TIMEOUT: "30s"
+      WEB_ROOT: /app/web
+    volumes:
+      - control-center-data:/data
+    restart: unless-stopped
+    networks:
+      - trafficlab
+
+  # ── Proxy Node 1 ────────────────────────────────────
+  proxy-node-1:
+    build:
+      context: ..
+      dockerfile: cmd/proxy-node/Dockerfile
+    ports:
+      - "10801:10801"
+      - "9200:9200"
+    environment:
+      NODE_ID: node-a
+      LISTEN_ADDR: ":10801"
+      CONTROL_CENTER_URL: http://control-center:8080
+      NODE_SECRET: node-secret-a
+      METRICS_LISTEN_ADDR: ":9200"
+      MAX_CONNECTIONS: "1000"
+      MAX_BANDWIDTH_MBPS: "100"
+      HEARTBEAT_INTERVAL: "10s"
+      TRAFFIC_REPORT_INTERVAL: "15s"
+      POLICY_FETCH_INTERVAL: "30s"
+    depends_on:
+      - control-center
+    restart: unless-stopped
+    networks:
+      - trafficlab
+
+  # ── Proxy Node 2 ────────────────────────────────────
+  proxy-node-2:
+    build:
+      context: ..
+      dockerfile: cmd/proxy-node/Dockerfile
+    ports:
+      - "10802:10801"
+      - "9201:9200"
+    environment:
+      NODE_ID: node-b
+      LISTEN_ADDR: ":10801"
+      CONTROL_CENTER_URL: http://control-center:8080
+      NODE_SECRET: node-secret-b
+      METRICS_LISTEN_ADDR: ":9200"
+      MAX_CONNECTIONS: "1000"
+      MAX_BANDWIDTH_MBPS: "100"
+      HEARTBEAT_INTERVAL: "10s"
+      TRAFFIC_REPORT_INTERVAL: "15s"
+      POLICY_FETCH_INTERVAL: "30s"
+    depends_on:
+      - control-center
+    restart: unless-stopped
+    networks:
+      - trafficlab
+
+  # ── Target Server (nginx for testing) ───────────────
+  target-server:
+    image: nginx:alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - trafficlab
+
+  # ── Prometheus ──────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    restart: unless-stopped
+    networks:
+      - trafficlab
+
+  # ── Grafana ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: ""
+    volumes:
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - trafficlab
+
+volumes:
+  control-center-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  trafficlab:
+    driver: bridge

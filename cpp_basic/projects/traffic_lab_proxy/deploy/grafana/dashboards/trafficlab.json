@@ -1,0 +1,17 @@
+{
+  "apiVersion": 1,
+  "providers": [
+    {
+      "name": "TrafficLab",
+      "folder": "TrafficLab",
+      "type": "file",
+      "disableDeletion": false,
+      "updateIntervalSeconds": 10,
+      "allowUiUpdates": true,
+      "options": {
+        "path": "/etc/grafana/provisioning/dashboards",
+        "foldersFromFilesStructure": true
+      }
+    }
+  ]
+}

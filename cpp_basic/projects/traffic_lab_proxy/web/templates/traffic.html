@@ -1,0 +1,62 @@
+{{template "base" .}}
+{{define "title"}}Traffic{{end}}
+{{define "content"}}
+<div class="page-header"><h1>Traffic Statistics</h1></div>
+<div class="card"><h2>Per-User Traffic</h2>
+    <table class="table" id="traffic-users-table">
+        <thead><tr><th>Username</th><th>Upload</th><th>Download</th><th>Used / Total</th></tr></thead>
+        <tbody id="traffic-users-tbody"></tbody>
+    </table>
+</div>
+<div class="card mt-4"><h2>Traffic Over Time</h2>
+    <canvas id="traffic-chart" height="100"></canvas>
+</div>
+{{end}}
+{{define "scripts"}}
+<script>
+async function loadTraffic() {
+    const [userResp, chartResp] = await Promise.all([
+        fetch('/api/v1/traffic/users'),
+        fetch('/api/v1/traffic/recent')
+    ]);
+    const users = await userResp.json();
+    const chartData = await chartResp.json();
+
+    if (users.success) {
+        document.getElementById('traffic-users-tbody').innerHTML = users.data.map(u => `
+            <tr>
+                <td>${esc(u.username)}</td>
+                <td>${formatBytes(u.total_upload)}</td>
+                <td>${formatBytes(u.total_download)}</td>
+                <td>${formatBytes(u.traffic_used)} / ${u.traffic_total > 0 ? formatBytes(u.traffic_total) : '∞'}</td>
+            </tr>
+        `).join('');
+    }
+
+    if (chartData.success && chartData.data.length > 0) {
+        const ctx = document.getElementById('traffic-chart').getContext('2d');
+        const sorted = chartData.data.sort((a,b) => a.time.localeCompare(b.time));
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: sorted.map(p => new Date(p.time).toLocaleTimeString()),
+                datasets: [
+                    {label: 'Upload', data: sorted.map(p => p.total_upload), backgroundColor: '#4CAF50'},
+                    {label: 'Download', data: sorted.map(p => p.total_download), backgroundColor: '#2196F3'}
+                ]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: {
+                        ticks: {callback: v => formatBytes(v)}
+                    }
+                }
+            }
+        });
+    }
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+loadTraffic();
+</script>
+{{end}}

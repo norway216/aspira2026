@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrafficLab - {{block "title" .}}Traffic Lab Proxy Control Platform{{end}}</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-brand">
+                <h2>TrafficLab</h2>
+                <span class="sidebar-subtitle">Proxy Control</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin/dashboard" class="nav-item {{if eq .ActivePage "dashboard"}}active{{end}}">
+                    <span class="nav-icon">📊</span> Dashboard
+                </a>
+                <a href="/admin/nodes" class="nav-item {{if eq .ActivePage "nodes"}}active{{end}}">
+                    <span class="nav-icon">🖥️</span> Nodes
+                </a>
+                <a href="/admin/users" class="nav-item {{if eq .ActivePage "users"}}active{{end}}">
+                    <span class="nav-icon">👥</span> Users
+                </a>
+                <a href="/admin/policies" class="nav-item {{if eq .ActivePage "policies"}}active{{end}}">
+                    <span class="nav-icon">📋</span> Policies
+                </a>
+                <a href="/admin/traffic" class="nav-item {{if eq .ActivePage "traffic"}}active{{end}}">
+                    <span class="nav-icon">📈</span> Traffic
+                </a>
+                <a href="/admin/scheduler" class="nav-item {{if eq .ActivePage "scheduler"}}active{{end}}">
+                    <span class="nav-icon">⚙️</span> Scheduler
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <a href="/admin/logout" class="nav-item">🚪 Logout</a>
+            </div>
+        </aside>
+        <main class="main-content">
+            {{block "content" .}}{{end}}
+        </main>
+    </div>
+    {{block "scripts" .}}{{end}}
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

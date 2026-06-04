@@ -1,0 +1,102 @@
+{{template "base" .}}
+{{define "title"}}Users{{end}}
+{{define "content"}}
+<div class="page-header">
+    <h1>Users</h1>
+    <button class="btn btn-primary" onclick="showCreateModal()">+ Create User</button>
+</div>
+
+<div class="card">
+    <table class="table" id="users-table">
+        <thead>
+            <tr>
+                <th>ID</th><th>Username</th><th>Status</th><th>Rate Limit</th>
+                <th>Connections</th><th>Traffic Used</th><th>Token</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+    </table>
+</div>
+
+<!-- Create User Modal -->
+<div id="create-modal" class="modal hidden">
+    <div class="modal-content">
+        <h2>Create User</h2>
+        <form id="create-user-form">
+            <div class="form-group"><label>Username</label><input type="text" name="username" required></div>
+            <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+            <div class="form-group"><label>Max Rate (Mbps)</label><input type="number" name="max_rate_mbps" value="10"></div>
+            <div class="form-group"><label>Max Connections</label><input type="number" name="max_connections" value="5"></div>
+            <div class="form-group"><label>Traffic Total (bytes, 0=unlimited)</label><input type="number" name="traffic_total" value="0"></div>
+            <div class="modal-actions">
+                <button type="button" class="btn" onclick="hideCreateModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create</button>
+            </div>
+        </form>
+    </div>
+</div>
+{{end}}
+{{define "scripts"}}
+<script>
+let users = [];
+
+async function loadUsers() {
+    const resp = await fetch('/api/v1/users');
+    const data = await resp.json();
+    if (data.success) {
+        users = data.data;
+        renderUsers();
+    }
+}
+
+function renderUsers() {
+    const tbody = document.getElementById('users-tbody');
+    tbody.innerHTML = users.map(u => `
+        <tr>
+            <td>${u.id}</td>
+            <td><strong>${esc(u.username)}</strong></td>
+            <td><span class="status-badge status-${u.status}">${u.status}</span></td>
+            <td>${u.max_rate_mbps} Mbps</td>
+            <td>${u.max_connections}</td>
+            <td>${formatBytes(u.traffic_used)} / ${u.traffic_total > 0 ? formatBytes(u.traffic_total) : '∞'}</td>
+            <td><code class="text-sm">${u.token ? u.token.substring(0,12)+'...' : '-'}</code></td>
+            <td>
+                <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id}, '${esc(u.username)}')">Delete</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() { document.getElementById('create-modal').classList.remove('hidden'); }
+function hideCreateModal() { document.getElementById('create-modal').classList.add('hidden'); }
+
+document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const body = {
+        username: form.username.value,
+        password: form.password.value,
+        max_rate_mbps: parseInt(form.max_rate_mbps.value) || 10,
+        max_connections: parseInt(form.max_connections.value) || 5,
+        traffic_total: parseInt(form.traffic_total.value) || 0
+    };
+    const resp = await fetch('/api/v1/users', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(body)
+    });
+    const data = await resp.json();
+    if (data.success) { hideCreateModal(); loadUsers(); form.reset(); }
+    else alert('Error: ' + data.error);
+});
+
+async function deleteUser(id, name) {
+    if (!confirm('Delete user ' + name + '?')) return;
+    await fetch('/api/v1/users/' + id, {method: 'DELETE'});
+    loadUsers();
+}
+
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+loadUsers();
+</script>
+{{end}}
