@@ -73,8 +73,8 @@
                 <n-data-table :columns="cmdColumns" :data="commands" :max-height="300" />
               </n-card>
             </n-grid-item>
-          </n-spin>
-        </n-loading>
+          </n-grid>
+        </n-spin>
       </n-layout-content>
     </n-layout>
   </n-layout>
