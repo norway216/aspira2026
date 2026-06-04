@@ -1,0 +1,48 @@
+{{template "base" .}}
+{{define "title"}}Scheduler{{end}}
+{{define "content"}}
+<div class="page-header">
+    <h1>Scheduler</h1>
+    <div class="form-inline">
+        <label for="strategy-select">Strategy:</label>
+        <select id="strategy-select" onchange="changeStrategy()">
+            <option value="round_robin">Round Robin</option>
+            <option value="least_connections">Least Connections</option>
+            <option value="least_bandwidth">Least Bandwidth</option>
+            <option value="weighted_round_robin">Weighted Round Robin</option>
+            <option value="composite" selected>Composite Score</option>
+        </select>
+    </div>
+</div>
+<div class="card"><h2>Scheduler Events</h2>
+    <table class="table" id="events-table">
+        <thead><tr><th>Time</th><th>User</th><th>Selected Node</th><th>Strategy</th><th>Reason</th></tr></thead>
+        <tbody id="events-tbody"></tbody>
+    </table>
+</div>
+{{end}}
+{{define "scripts"}}
+<script>
+async function loadEvents() {
+    const resp = await fetch('/api/v1/scheduler/events');
+    const data = await resp.json();
+    if (data.success) {
+        document.getElementById('events-tbody').innerHTML = data.data.map(e => `
+            <tr>
+                <td>${new Date(e.created_at).toLocaleString()}</td>
+                <td>${e.user_id || '-'}</td>
+                <td>${e.selected_node_id || '-'}</td>
+                <td><span class="badge">${e.strategy}</span></td>
+                <td class="text-muted text-sm">${e.reason || ''}</td>
+            </tr>
+        `).join('');
+    }
+}
+async function changeStrategy() {
+    const s = document.getElementById('strategy-select').value;
+    await fetch('/api/v1/scheduler/strategy?strategy=' + s, {method: 'POST'});
+    alert('Strategy changed to: ' + s);
+}
+loadEvents();
+</script>
+{{end}}

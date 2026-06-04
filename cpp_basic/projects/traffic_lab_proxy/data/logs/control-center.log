@@ -1,0 +1,26 @@
+time=2026-06-04T11:20:16.774+08:00 level=INFO msg="starting control center" listen=:8080 db_driver=sqlite db_dsn=/home/sa/Lab/Programming/aspira2026/cpp_basic/projects/traffic_lab_proxy/data/trafficlab.db
+time=2026-06-04T11:20:16.776+08:00 level=INFO msg="database connected"
+time=2026-06-04T11:20:16.776+08:00 level=INFO msg="scheduler initialized" strategy=composite
+time=2026-06-04T11:20:16.776+08:00 level=INFO msg="HTTP server starting" addr=:8080
+time=2026-06-04T11:20:16.782+08:00 level=INFO msg=request method=GET path=/metrics status=200 duration=2.066755ms remote=[::1]:52524
+time=2026-06-04T11:20:16.791+08:00 level=INFO msg=request method=POST path=/api/v1/users status=409 duration=1.012208ms remote=[::1]:52538
+time=2026-06-04T11:20:16.801+08:00 level=INFO msg=request method=GET path=/api/v1/users status=200 duration=338.613µs remote=[::1]:52540
+time=2026-06-04T11:20:16.827+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/register status=200 duration=478.741µs remote=[::1]:52542
+time=2026-06-04T11:20:16.836+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=845.724µs remote=127.0.0.1:35162
+time=2026-06-04T11:20:16.837+08:00 level=INFO msg=request method=GET path=/api/v1/nodes/node-01/policies status=200 duration=1.263948ms remote=127.0.0.1:35150
+time=2026-06-04T11:20:17.846+08:00 level=INFO msg=request method=GET path=/api/v1/nodes status=200 duration=340.962µs remote=[::1]:52554
+time=2026-06-04T11:20:17.866+08:00 level=INFO msg=request method=GET path=/api/v1/schedule status=200 duration=763.57µs remote=[::1]:52568
+time=2026-06-04T11:20:26.846+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=558.999µs remote=127.0.0.1:35150
+time=2026-06-04T11:20:36.849+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=1.222664ms remote=127.0.0.1:60674
+time=2026-06-04T11:20:46.838+08:00 level=INFO msg=request method=GET path=/api/v1/nodes/node-01/policies status=200 duration=282.413µs remote=127.0.0.1:33216
+time=2026-06-04T11:20:46.851+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=325.315µs remote=127.0.0.1:33216
+time=2026-06-04T11:20:56.853+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=543.2µs remote=127.0.0.1:49428
+time=2026-06-04T11:21:06.856+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=456.235µs remote=127.0.0.1:46066
+time=2026-06-04T11:21:12.314+08:00 level=INFO msg=request method=GET path=/api/v1/ status=404 duration=58.242µs remote=127.0.0.1:58580
+time=2026-06-04T11:21:12.342+08:00 level=INFO msg=request method=GET path=/favicon.ico status=404 duration=24.649µs remote=127.0.0.1:58580
+time=2026-06-04T11:21:16.844+08:00 level=INFO msg=request method=GET path=/api/v1/nodes/node-01/policies status=200 duration=451.445µs remote=127.0.0.1:58590
+time=2026-06-04T11:21:16.860+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=862.999µs remote=127.0.0.1:58590
+time=2026-06-04T11:21:26.868+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=388.025µs remote=127.0.0.1:59558
+time=2026-06-04T11:21:36.869+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=439.807µs remote=127.0.0.1:49178
+time=2026-06-04T11:21:46.839+08:00 level=INFO msg=request method=GET path=/api/v1/nodes/node-01/policies status=200 duration=355.256µs remote=127.0.0.1:44016
+time=2026-06-04T11:21:46.872+08:00 level=INFO msg=request method=POST path=/api/v1/nodes/heartbeat status=200 duration=363.077µs remote=127.0.0.1:44016

@@ -1,0 +1,55 @@
+{{template "base" .}}
+{{define "title"}}Nodes{{end}}
+{{define "content"}}
+<div class="page-header">
+    <h1>Proxy Nodes</h1>
+    <p class="text-muted">Manage and monitor proxy nodes</p>
+</div>
+
+<div class="card">
+    <table class="table" id="nodes-table">
+        <thead>
+            <tr>
+                <th>Status</th><th>Node ID</th><th>Name</th><th>Address</th>
+                <th>Bandwidth</th><th>Connections</th><th>Weight</th><th>Last Heartbeat</th><th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Nodes}}
+            <tr>
+                <td><span class="status-badge status-{{.Status}}">{{.Status}}</span></td>
+                <td><code>{{.NodeID}}</code></td>
+                <td>{{.Name}}</td>
+                <td>{{.IP}}:{{.ProxyPort}}</td>
+                <td>{{.MaxBandwidthMbps}} Mbps</td>
+                <td>{{.MaxConnections}}</td>
+                <td>{{.Weight}}</td>
+                <td>{{if .LastHeartbeat}}{{.LastHeartbeat.Format "15:04:05"}}{{else}}-{{end}}</td>
+                <td>
+                    {{if eq .Status "online" "degraded"}}
+                    <button class="btn btn-sm btn-danger" onclick="disableNode('{{.NodeID}}')">Disable</button>
+                    {{else if eq .Status "disabled"}}
+                    <button class="btn btn-sm btn-success" onclick="enableNode('{{.NodeID}}')">Enable</button>
+                    {{end}}
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="9" class="text-muted">No nodes registered.</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
+{{define "scripts"}}
+<script>
+async function disableNode(nodeId) {
+    if (!confirm('Disable node ' + nodeId + '?')) return;
+    await fetch('/api/v1/nodes/' + nodeId + '/disable', {method: 'POST'});
+    location.reload();
+}
+async function enableNode(nodeId) {
+    await fetch('/api/v1/nodes/' + nodeId + '/enable', {method: 'POST'});
+    location.reload();
+}
+</script>
+{{end}}

@@ -1,0 +1,31 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "control-center"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["control-center:8080"]
+        labels:
+          service: "control-center"
+
+  - job_name: "proxy-node-1"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["proxy-node-1:9200"]
+        labels:
+          node: "node-a"
+          service: "proxy-node"
+
+  - job_name: "proxy-node-2"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["proxy-node-2:9200"]
+        labels:
+          node: "node-b"
+          service: "proxy-node"
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
