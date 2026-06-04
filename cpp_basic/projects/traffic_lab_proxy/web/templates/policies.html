@@ -1,0 +1,28 @@
+{{template "base" .}}
+{{define "title"}}Policies{{end}}
+{{define "content"}}
+<div class="page-header"><h1>Rate Limit Policies</h1></div>
+<div class="card"><table class="table" id="policies-table">
+    <thead><tr><th>User ID</th><th>Max Rate</th><th>Burst</th><th>Max Conns</th><th>Priority</th><th>Status</th></tr></thead>
+    <tbody id="policies-tbody"></tbody>
+</table></div>
+{{end}}
+{{define "scripts"}}
+<script>
+async function loadPolicies() {
+    const resp = await fetch('/api/v1/policies');
+    const data = await resp.json();
+    if (data.success) {
+        document.getElementById('policies-tbody').innerHTML = data.data.map(p => `
+            <tr>
+                <td>${esc(p.user_id)}</td><td>${p.max_rate_mbps} Mbps</td><td>${p.burst_mbps} Mbps</td>
+                <td>${p.max_connections}</td><td>${p.priority}</td>
+                <td><span class="status-badge status-${p.status}">${p.status}</span></td>
+            </tr>
+        `).join('');
+    }
+}
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+loadPolicies();
+</script>
+{{end}}
