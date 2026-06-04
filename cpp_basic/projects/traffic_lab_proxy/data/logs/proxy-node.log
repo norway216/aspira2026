@@ -1,0 +1,7 @@
+time=2026-06-04T11:20:16.833+08:00 level=INFO msg="starting proxy node" node_id=node-01 listen=:10801 control_center=http://localhost:8080 metrics=:9200
+time=2026-06-04T11:20:16.837+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
+time=2026-06-04T11:20:17.334+08:00 level=INFO msg="metrics server starting" addr=:9200
+time=2026-06-04T11:20:17.334+08:00 level=INFO msg="proxy server listening" addr=:10801
+time=2026-06-04T11:20:46.838+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
+time=2026-06-04T11:21:16.845+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
+time=2026-06-04T11:21:46.839+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
