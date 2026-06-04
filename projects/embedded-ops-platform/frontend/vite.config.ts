@@ -20,5 +20,8 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
+    // Firefox 78+ / Chrome 87+ / Safari 14+ compatibility
+    target: ['es2020', 'firefox78', 'chrome87', 'safari14'],
+    cssTarget: ['firefox78', 'chrome87', 'safari14'],
   },
 })
