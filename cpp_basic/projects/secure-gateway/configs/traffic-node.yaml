@@ -1,0 +1,28 @@
+node:
+  node_id: "edge-node-01"
+  name: "Edge Node 01"
+  region: "local-lab"
+  public_addr: "traffic-node:9443"
+  secret: "node-secret-change-me"
+  max_connections: 10000
+
+server:
+  listen: ":9443"
+  tls_enabled: false
+  # tls_cert: "/app/certs/node.crt"
+  # tls_key: "/app/certs/node.key"
+
+control:
+  endpoint: "http://api-gateway:8080"
+  heartbeat_interval: "5s"
+  registration_key: "register-key"
+
+limits:
+  max_connections: 10000
+  idle_timeout: "120s"
+  read_timeout: "30s"
+  write_timeout: "30s"
+
+log:
+  level: "info"
+  # file: "/var/log/traffic-node.log"

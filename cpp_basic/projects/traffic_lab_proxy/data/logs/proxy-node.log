@@ -5,3 +5,7 @@ time=2026-06-04T11:20:17.334+08:00 level=INFO msg="proxy server listening" addr=
 time=2026-06-04T11:20:46.838+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
 time=2026-06-04T11:21:16.845+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
 time=2026-06-04T11:21:46.839+08:00 level=INFO msg="policies updated" users=1 max_bw=100 max_conns=1000
+time=2026-06-04T11:21:59.515+08:00 level=INFO msg="shutting down proxy node..."
+time=2026-06-04T11:21:59.515+08:00 level=INFO msg="proxy server shutting down..."
+time=2026-06-04T11:21:59.515+08:00 level=INFO msg="proxy node stopped"
+time=2026-06-04T11:21:59.516+08:00 level=INFO msg="all connections drained gracefully"

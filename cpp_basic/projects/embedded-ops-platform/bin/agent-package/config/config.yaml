@@ -1,0 +1,25 @@
+server:
+  url: "http://embedded-ops-server:8080"
+  websocket_url: "ws://embedded-ops-server:8080/ws"
+
+agent:
+  device_name: ""
+  register_code: "embedded-ops-first-run"
+  data_dir: "/var/lib/embedded-agent"
+  log_file: "/var/log/embedded-agent.log"
+
+security:
+  tls_verify: false
+  token_file: "/var/lib/embedded-agent/identity.json"
+  device_cert: "/var/lib/embedded-agent/device.crt"
+  device_key: "/var/lib/embedded-agent/device.key"
+
+collector:
+  heartbeat_interval_sec: 5
+  metrics_interval_sec: 10
+  logs_interval_sec: 60
+
+command:
+  enable_remote_command: true
+  allow_reboot: false
+  allow_shell: false

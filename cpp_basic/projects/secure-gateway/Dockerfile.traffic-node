@@ -1,0 +1,28 @@
+FROM golang:1.22-alpine AS builder
+
+ENV GOPROXY=https://goproxy.cn,direct
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /build
+
+# Cache module downloads
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o traffic-node ./cmd/traffic-node
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /app
+
+COPY --from=builder /build/traffic-node .
+COPY --from=builder /build/configs/traffic-node.yaml ./configs/
+
+EXPOSE 9443 9100
+
+CMD ["./traffic-node", "-config", "configs/traffic-node.yaml"]
