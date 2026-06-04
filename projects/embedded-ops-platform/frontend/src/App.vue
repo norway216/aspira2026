@@ -30,6 +30,13 @@ html, body, #app {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Firefox scrollbar */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Chrome/Safari/Edge scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -38,5 +45,9 @@ html, body, #app {
 ::-webkit-scrollbar-thumb {
   background-color: rgba(0, 0, 0, 0.2);
   border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 </style>
