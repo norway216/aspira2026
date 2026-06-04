@@ -1,0 +1,116 @@
+version: "3.9"
+
+name: embedded-ops-platform
+
+services:
+  # ========================
+  # PostgreSQL Database
+  # ========================
+  postgres:
+    image: postgres:16-alpine
+    container_name: embedded-ops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-embedded_ops}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-embedded_ops_secret}
+      POSTGRES_DB: ${DB_NAME:-embedded_ops}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-embedded_ops} -d ${DB_NAME:-embedded_ops}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    networks:
+      - embedded-ops-net
+
+  # ========================
+  # Redis Cache
+  # ========================
+  redis:
+    image: redis:7-alpine
+    container_name: embedded-ops-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --save 60 1000
+    volumes:
+      - redis-data:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks:
+      - embedded-ops-net
+
+  # ========================
+  # Backend API Server
+  # ========================
+  backend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.backend
+    container_name: embedded-ops-server
+    restart: unless-stopped
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${DB_USER:-embedded_ops}
+      DB_PASSWORD: ${DB_PASSWORD:-embedded_ops_secret}
+      DB_NAME: ${DB_NAME:-embedded_ops}
+      DB_SSLMODE: disable
+      DB_MAX_OPEN_CONNS: "100"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_POOL_SIZE: "100"
+      SERVER_HOST: "0.0.0.0"
+      SERVER_PORT: "8080"
+      GIN_MODE: ${GIN_MODE:-release}
+      JWT_SECRET: ${JWT_SECRET:-embedded-ops-jwt-secret-change-in-production}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - embedded-ops-net
+
+  # ========================
+  # Frontend (Nginx)
+  # ========================
+  frontend:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+    container_name: embedded-ops-frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-80}:80"
+    depends_on:
+      - backend
+    networks:
+      - embedded-ops-net
+
+networks:
+  embedded-ops-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local

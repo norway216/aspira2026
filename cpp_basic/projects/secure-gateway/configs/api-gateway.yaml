@@ -1,0 +1,28 @@
+server:
+  listen: ":8080"
+  tls_enabled: false
+  # tls_cert: "/app/certs/server.crt"
+  # tls_key: "/app/certs/server.key"
+
+jwt:
+  issuer: "secure-gateway"
+  access_token_ttl: "15m"
+  refresh_token_ttl: "168h"
+  # signing_key: "change-me-in-production"
+  # refresh_signing_key: "change-me-in-production-refresh"
+
+database:
+  driver: "postgres"
+  dsn: "postgres://gateway:gateway123@postgres:5432/gateway?sslmode=disable"
+
+redis:
+  addr: "redis:6379"
+  db: 0
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 120
+
+log:
+  level: "info"
+  # file: "/var/log/api-gateway.log"
