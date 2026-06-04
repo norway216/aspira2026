@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sg-postgres
+    environment:
+      POSTGRES_USER: gateway
+      POSTGRES_PASSWORD: gateway123
+      POSTGRES_DB: gateway
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sg-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: sg-redis
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sg-network
+
+  api-gateway:
+    image: sg-api-gateway
+    container_name: sg-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      JWT_SIGNING_KEY: "dev-signing-key-change-in-production"
+      JWT_REFRESH_SIGNING_KEY: "dev-refresh-key-change-in-production"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - sg-network
+
+  traffic-node:
+    image: sg-traffic-node
+    container_name: sg-traffic-node
+    ports:
+      - "9443:9443"
+      - "9100:9100"
+    environment:
+      NODE_SECRET: "node-secret-change-me"
+    depends_on:
+      - api-gateway
+    networks:
+      - sg-network
+
+  # Web frontend served by Nginx
+  web:
+    image: nginx:alpine
+    container_name: sg-web
+    ports:
+      - "80:80"
+    volumes:
+      - ./web/dist:/usr/share/nginx/html:ro
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - api-gateway
+    networks:
+      - sg-network
+
+networks:
+  sg-network:
+    driver: bridge
+
+volumes:
+  pgdata:
