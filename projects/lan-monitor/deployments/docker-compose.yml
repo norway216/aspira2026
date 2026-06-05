@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  lan-monitor:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    container_name: lan-monitor
+    network_mode: host
+    cap_add:
+      - NET_RAW
+      - NET_ADMIN
+    volumes:
+      - ../configs:/app/configs
+      - lan_monitor_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  lan_monitor_data:

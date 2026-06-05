@@ -1,0 +1,308 @@
+package database
+
+import (
+	"database/sql"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
+	_ "modernc.org/sqlite"
+)
+
+var DB *sql.DB
+
+func Init(dbPath string) (*sql.DB, error) {
+	dir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("create data directory: %w", err)
+	}
+
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open database: %w", err)
+	}
+
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
+	db.SetConnMaxLifetime(time.Hour)
+
+	// Apply PRAGMAs
+	db.Exec("PRAGMA journal_mode=WAL")
+	db.Exec("PRAGMA synchronous=NORMAL")
+	db.Exec("PRAGMA busy_timeout=5000")
+	db.Exec("PRAGMA foreign_keys=ON")
+
+	DB = db
+
+	if err := autoMigrate(db); err != nil {
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
+
+	if err := seedData(db); err != nil {
+		return nil, fmt.Errorf("seed: %w", err)
+	}
+
+	return db, nil
+}
+
+func autoMigrate(db *sql.DB) error {
+	migrations := []string{
+		`CREATE TABLE IF NOT EXISTS users (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			username TEXT UNIQUE NOT NULL,
+			password_hash TEXT NOT NULL,
+			email TEXT DEFAULT '',
+			role TEXT DEFAULT 'viewer',
+			status TEXT DEFAULT 'active',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS roles (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT UNIQUE NOT NULL,
+			description TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS permissions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			code TEXT UNIQUE NOT NULL,
+			description TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS role_permissions (
+			role_id INTEGER NOT NULL,
+			permission_id INTEGER NOT NULL,
+			PRIMARY KEY (role_id, permission_id)
+		)`,
+		`CREATE TABLE IF NOT EXISTS devices (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			ip TEXT NOT NULL,
+			mac TEXT UNIQUE DEFAULT '',
+			hostname TEXT DEFAULT '',
+			vendor TEXT DEFAULT '',
+			device_type TEXT DEFAULT 'unknown',
+			label TEXT DEFAULT '',
+			owner TEXT DEFAULT '',
+			department TEXT DEFAULT '',
+			status TEXT DEFAULT 'unknown',
+			first_seen DATETIME,
+			last_seen DATETIME,
+			last_online_at DATETIME,
+			last_offline_at DATETIME,
+			online_duration_seconds INTEGER DEFAULT 0,
+			offline_count INTEGER DEFAULT 0,
+			fail_count INTEGER DEFAULT 0,
+			consecutive_failures INTEGER DEFAULT 0,
+			risk_level TEXT DEFAULT 'normal',
+			note TEXT DEFAULT '',
+			open_ports TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS device_events (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			device_mac TEXT DEFAULT '',
+			event_type TEXT NOT NULL,
+			old_status TEXT DEFAULT '',
+			new_status TEXT DEFAULT '',
+			event_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+			description TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS online_sessions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			online_at DATETIME NOT NULL,
+			offline_at DATETIME,
+			duration_sec INTEGER DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS scan_tasks (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			subnet TEXT NOT NULL,
+			scan_type TEXT NOT NULL,
+			status TEXT DEFAULT 'pending',
+			started_at DATETIME,
+			finished_at DATETIME,
+			total_ips INTEGER DEFAULT 0,
+			online_count INTEGER DEFAULT 0,
+			error_msg TEXT DEFAULT ''
+		)`,
+		`CREATE TABLE IF NOT EXISTS scan_configs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			subnets TEXT DEFAULT '["auto"]',
+			methods TEXT DEFAULT '["arp","ping","tcp"]',
+			interval_seconds INTEGER DEFAULT 60,
+			worker_count INTEGER DEFAULT 100,
+			timeout_ms INTEGER DEFAULT 800,
+			offline_threshold INTEGER DEFAULT 3,
+			tcp_ports TEXT DEFAULT '[22,80,443,8080,3389]',
+			enabled INTEGER DEFAULT 1
+		)`,
+		`CREATE TABLE IF NOT EXISTS alerts (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER,
+			device_mac TEXT DEFAULT '',
+			alert_type TEXT NOT NULL,
+			level TEXT NOT NULL,
+			title TEXT NOT NULL,
+			content TEXT DEFAULT '',
+			status TEXT DEFAULT 'open',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			resolved_at DATETIME,
+			resolved_by INTEGER
+		)`,
+		`CREATE TABLE IF NOT EXISTS audit_logs (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			user_id INTEGER,
+			username TEXT DEFAULT '',
+			action TEXT NOT NULL,
+			resource_type TEXT DEFAULT '',
+			resource_id TEXT DEFAULT '',
+			ip TEXT DEFAULT '',
+			user_agent TEXT DEFAULT '',
+			detail TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS traffic_records (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id INTEGER NOT NULL,
+			device_mac TEXT DEFAULT '',
+			rx_bytes INTEGER DEFAULT 0,
+			tx_bytes INTEGER DEFAULT 0,
+			rx_rate REAL DEFAULT 0,
+			tx_rate REAL DEFAULT 0,
+			total_rate REAL DEFAULT 0,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS system_traffics (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			rx_bytes INTEGER DEFAULT 0,
+			tx_bytes INTEGER DEFAULT 0,
+			rx_rate REAL DEFAULT 0,
+			tx_rate REAL DEFAULT 0,
+			timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS agent_reports (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			device_id TEXT DEFAULT '',
+			ip TEXT DEFAULT '',
+			mac TEXT DEFAULT '',
+			rx_bytes INTEGER DEFAULT 0,
+			tx_bytes INTEGER DEFAULT 0,
+			cpu_usage REAL DEFAULT 0,
+			memory_usage REAL DEFAULT 0,
+			disk_usage REAL DEFAULT 0,
+			temperature REAL DEFAULT 0,
+			report_time DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_devices_status ON devices(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_devices_mac ON devices(mac)`,
+		`CREATE INDEX IF NOT EXISTS idx_devices_ip ON devices(ip)`,
+		`CREATE INDEX IF NOT EXISTS idx_device_events_device_id ON device_events(device_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_device_events_event_time ON device_events(event_time)`,
+		`CREATE INDEX IF NOT EXISTS idx_traffic_records_device_id ON traffic_records(device_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_traffic_records_timestamp ON traffic_records(timestamp)`,
+		`CREATE INDEX IF NOT EXISTS idx_alerts_status ON alerts(status)`,
+		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at)`,
+	}
+
+	for _, m := range migrations {
+		if _, err := db.Exec(m); err != nil {
+			return fmt.Errorf("migration error: %w\nSQL: %s", err, m[:60])
+		}
+	}
+	return nil
+}
+
+func seedData(db *sql.DB) error {
+	// Seed permissions
+	perms := []struct{ code, desc string }{
+		{"device:view", "查看设备"},
+		{"device:update", "更新设备"},
+		{"device:delete", "删除设备"},
+		{"scan:start", "手动扫描"},
+		{"scan:config", "扫描配置"},
+		{"traffic:view", "查看流量"},
+		{"alert:view", "查看告警"},
+		{"alert:update", "处理告警"},
+		{"user:create", "创建用户"},
+		{"user:update", "更新用户"},
+		{"user:delete", "删除用户"},
+		{"audit:view", "查看审计日志"},
+		{"system:config", "系统配置"},
+	}
+	for _, p := range perms {
+		db.Exec("INSERT OR IGNORE INTO permissions (code, description) VALUES (?, ?)", p.code, p.desc)
+	}
+
+	// Seed roles
+	db.Exec("INSERT OR IGNORE INTO roles (id, name, description) VALUES (1, 'super_admin', '超级管理员')")
+	db.Exec("INSERT OR IGNORE INTO roles (id, name, description) VALUES (2, 'admin', '管理员')")
+	db.Exec("INSERT OR IGNORE INTO roles (id, name, description) VALUES (3, 'viewer', '只读用户')")
+
+	// Assign all permissions to super_admin
+	rows, _ := db.Query("SELECT id FROM permissions")
+	var permIDs []int
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		permIDs = append(permIDs, id)
+	}
+	rows.Close()
+	for _, pid := range permIDs {
+		db.Exec("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (1, ?)", pid)
+	}
+
+	// Viewer gets view permissions
+	viewPerms := map[string]bool{"device:view": true, "traffic:view": true, "alert:view": true}
+	srows, _ := db.Query("SELECT id, code FROM permissions")
+	for srows.Next() {
+		var id int
+		var code string
+		srows.Scan(&id, &code)
+		if viewPerms[code] {
+			db.Exec("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (3, ?)", id)
+		}
+		if code != "user:delete" && code != "system:config" {
+			db.Exec("INSERT OR IGNORE INTO role_permissions (role_id, permission_id) VALUES (2, ?)", id)
+		}
+	}
+	srows.Close()
+
+	// Seed admin user
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM users").Scan(&count)
+	if count == 0 {
+		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		db.Exec("INSERT INTO users (username, password_hash, email, role, status) VALUES (?, ?, ?, ?, ?)",
+			"admin", string(hash), "admin@lan-monitor.local", "super_admin", "active")
+	}
+
+	// Seed scan config
+	db.QueryRow("SELECT COUNT(*) FROM scan_configs").Scan(&count)
+	if count == 0 {
+		db.Exec(`INSERT INTO scan_configs (subnets, methods, interval_seconds, worker_count, timeout_ms, offline_threshold, tcp_ports, enabled)
+			VALUES ('["auto"]', '["arp","ping","tcp"]', 60, 100, 800, 3, '[22,80,443,8080,3389]', 1)`)
+	}
+
+	return nil
+}
+
+// Helper functions for building queries
+
+func Placeholders(n int) string {
+	if n <= 0 {
+		return ""
+	}
+	parts := make([]string, n)
+	for i := range parts {
+		parts[i] = "?"
+	}
+	return strings.Join(parts, ",")
+}
+
+func Now() time.Time {
+	return time.Now()
+}

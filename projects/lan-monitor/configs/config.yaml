@@ -1,0 +1,36 @@
+server:
+  addr: ":8080"
+  mode: "release"  # debug or release
+
+scan:
+  enabled: true
+  interval_seconds: 60
+  subnets:
+    - "auto"  # auto-detect local subnets
+  methods:
+    - "arp"
+    - "ping"
+    - "tcp"
+  worker_count: 100
+  timeout_ms: 800
+  offline_threshold: 3
+  tcp_ports:
+    - 22
+    - 80
+    - 443
+    - 8080
+    - 3389
+
+database:
+  path: "./data/lan_monitor.db"
+
+jwt:
+  secret: "lan-monitor-secret-change-in-production"
+  access_token_expire_minutes: 60
+  refresh_token_expire_hours: 168
+
+alert:
+  new_device_enabled: true
+  offline_enabled: true
+  high_traffic_enabled: false
+  high_traffic_threshold_mbps: 100
