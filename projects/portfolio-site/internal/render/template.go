@@ -30,6 +30,7 @@ func NewRenderer(templateDir string) (*Renderer, error) {
 			"dict":           dict,
 			"safeHTML":       func(s string) template.HTML { return template.HTML(s) },
 			"split":          func(s, sep string) []string { return strings.Split(s, sep) },
+			"coverIndex":     coverIndex,
 		},
 	}
 
@@ -106,6 +107,16 @@ func (r *Renderer) RenderString(name string, data interface{}) (string, error) {
 		return "", err
 	}
 	return buf.String(), nil
+}
+
+// coverIndex extracts the gradient index from a coverImage string like "gradient:3".
+func coverIndex(coverImage string) string {
+	if strings.HasPrefix(coverImage, "gradient:") {
+		idx := strings.TrimPrefix(coverImage, "gradient:")
+		return idx
+	}
+	// Default to 1.
+	return "1"
 }
 
 func truncate(s string, n int) string {

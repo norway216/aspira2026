@@ -1,13 +1,20 @@
 {{ define "content" }}
 <article class="detail-page">
-    <header class="detail-header">
+    <!-- Gradient cover hero -->
+    <div class="project-detail-cover cover-{{ coverIndex .Project.CoverImage }}">
+        <div class="cover-grain" aria-hidden="true"></div>
+        <div class="cover-fade" aria-hidden="true"></div>
+        <span class="detail-cover-text">{{ .Project.Title }}</span>
+    </div>
+
+    <header class="detail-header" style="padding-top:0;border-bottom:1px solid var(--color-border);margin-bottom:40px">
         {{ if .Project.Category }}<p class="eyebrow">{{ .Project.Category }}</p>{{ end }}
-        <h1>{{ .Project.Title }}</h1>
+        <h1 style="font-size:clamp(28px,4vw,42px)">{{ .Project.Title }}</h1>
         <p class="detail-summary">{{ .Project.Summary }}</p>
         {{ if .Project.TechStack }}
-        <div class="tech-tags">
+        <div class="project-meta-row">
             {{ range split .Project.TechStack "," }}
-            <span class="tech-tag">{{ . }}</span>
+            <span class="meta-item">{{ . }}</span>
             {{ end }}
         </div>
         {{ end }}
