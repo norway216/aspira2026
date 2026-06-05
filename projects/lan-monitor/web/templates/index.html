@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LAN Monitor - 局域网设备监控管理系统</title>
+  <link rel="stylesheet" href="/static/css/app.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toasts"></div>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <h1><i class="fa-solid fa-network-wired"></i> LAN Monitor</h1>
+    <p class="subtitle">局域网设备监控管理系统</p>
+    <form id="loginForm">
+      <div class="form-group">
+        <label class="form-label">用户名</label>
+        <input type="text" class="form-input" id="loginUser" placeholder="请输入用户名" value="admin" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">密码</label>
+        <input type="password" class="form-input" id="loginPass" placeholder="请输入密码" value="admin123" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" style="margin-top:8px">登 录</button>
+    </form>
+    <p style="text-align:center;margin-top:16px;font-size:12px;color:#999">
+      默认管理员: admin / admin123
+    </p>
+  </div>
+</div>
+
+<!-- ==================== MAIN APP ==================== -->
+<div id="appLayout" class="app-layout">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <h2><i class="fa-solid fa-network-wired"></i> LAN Monitor</h2>
+      <small>局域网设备监控</small>
+    </div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')">
+        <i class="fa-solid fa-gauge-high"></i> 仪表盘
+      </a>
+      <a class="nav-item" data-page="devices" onclick="navigateTo('devices')">
+        <i class="fa-solid fa-computer"></i> 在线设备
+      </a>
+      <a class="nav-item" data-page="traffic" onclick="navigateTo('traffic')">
+        <i class="fa-solid fa-chart-line"></i> 流量分析
+      </a>
+      <a class="nav-item" data-page="alerts" onclick="navigateTo('alerts')">
+        <i class="fa-solid fa-bell"></i> 告警中心
+        <span id="alertBadge" style="margin-left:auto;background:#F56C6C;color:white;padding:1px 7px;border-radius:10px;font-size:11px;display:none">0</span>
+      </a>
+      <a class="nav-item" data-page="users" onclick="navigateTo('users')">
+        <i class="fa-solid fa-users"></i> 用户管理
+      </a>
+      <a class="nav-item" data-page="audit" onclick="navigateTo('audit')">
+        <i class="fa-solid fa-clock-rotate-left"></i> 操作审计
+      </a>
+      <a class="nav-item" data-page="settings" onclick="navigateTo('settings')">
+        <i class="fa-solid fa-gear"></i> 系统设置
+      </a>
+    </nav>
+    <div style="position:absolute;bottom:0;width:100%;padding:12px 20px;border-top:1px solid rgba(255,255,255,0.1);font-size:12px;color:rgba(255,255,255,0.4)">
+      <span id="wsStatus"><i class="fa-solid fa-circle" style="color:#67C23A;font-size:8px"></i> 实时连接</span>
+      <span style="float:right" id="sidebarClock"></span>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <header class="header">
+      <div class="header-left">
+        <button class="btn btn-sm btn-default" id="menuToggle" style="display:none">
+          <i class="fa-solid fa-bars"></i>
+        </button>
+        <span id="pageTitle" style="font-size:16px;font-weight:600">仪表盘</span>
+      </div>
+      <div class="header-right">
+        <span style="font-size:13px;color:var(--text-secondary)">
+          <i class="fa-solid fa-plug"></i> WS: <span id="wsClients">0</span> 连接
+        </span>
+        <span style="font-size:13px;color:var(--text-secondary)">
+          <i class="fa-solid fa-clock"></i> <span id="headerTime"></span>
+        </span>
+        <span class="header-user">
+          <i class="fa-solid fa-user"></i> <strong id="headerUsername"></strong>
+          <span style="font-size:11px;color:var(--text-secondary)">(<span id="headerRole"></span>)</span>
+        </span>
+        <button class="btn btn-sm btn-default" onclick="logout()">
+          <i class="fa-solid fa-right-from-bracket"></i> 退出
+        </button>
+      </div>
+    </header>
+
+    <!-- Dashboard Page -->
+    <div class="page-content active" id="page-dashboard">
+      <div class="stats-grid" id="dashboardStats"></div>
+      <div class="charts-grid">
+        <div class="card"><div class="card-header"><span class="card-title">设备状态分布</span></div>
+          <div class="chart-container" id="chartStatusDist"></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">设备类型分布</span></div>
+          <div class="chart-container" id="chartTypeDist"></div>
+        </div>
+      </div>
+      <div class="charts-grid" style="margin-top:20px">
+        <div class="card"><div class="card-header"><span class="card-title">最近告警</span></div>
+          <div id="recentAlerts" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+        <div class="card"><div class="card-header"><span class="card-title">最近设备事件</span></div>
+          <div id="recentEvents" style="max-height:300px;overflow-y:auto"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Devices Page -->
+    <div class="page-content" id="page-devices">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <input type="text" class="search-input" id="deviceSearch" placeholder="搜索 IP / MAC / 主机名..." onkeyup="loadDeviceList()">
+          <select class="form-select" id="deviceStatusFilter" onchange="loadDeviceList()" style="width:auto;padding:8px 12px">
+            <option value="">全部状态</option>
+            <option value="online">在线</option>
+            <option value="offline">离线</option>
+            <option value="warning">异常</option>
+            <option value="unknown">未知</option>
+          </select>
+          <select class="form-select" id="deviceTypeFilter" onchange="loadDeviceList()" style="width:auto;padding:8px 12px">
+            <option value="">全部类型</option>
+            <option value="PC">PC</option>
+            <option value="Phone">手机</option>
+            <option value="Server">服务器</option>
+            <option value="Router">路由器</option>
+            <option value="Printer">打印机</option>
+            <option value="Embedded">嵌入式</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-primary" onclick="startScan()">
+            <i class="fa-solid fa-magnifying-glass"></i> 立即扫描
+          </button>
+          <button class="btn btn-sm btn-default" onclick="loadDeviceList()">
+            <i class="fa-solid fa-rotate"></i> 刷新
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>状态</th><th>IP 地址</th><th>MAC 地址</th><th>主机名</th>
+                <th>厂商</th><th>类型</th><th>在线时长</th><th>标签</th>
+                <th>最后发现</th><th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="deviceTableBody"></tbody>
+          </table>
+        </div>
+        <div id="devicePagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Device Detail Page -->
+    <div class="page-content" id="page-device-detail">
+      <button class="btn btn-sm btn-default" onclick="navigateTo('devices')" style="margin-bottom:16px">
+        <i class="fa-solid fa-arrow-left"></i> 返回设备列表
+      </button>
+      <div id="deviceDetailContent"></div>
+    </div>
+
+    <!-- Traffic Page -->
+    <div class="page-content" id="page-traffic">
+      <div class="card"><div class="card-header"><span class="card-title">设备流量排行 (近5分钟)</span></div>
+        <div class="table-container">
+          <table>
+            <thead><tr><th>排名</th><th>设备</th><th>IP</th><th>MAC</th><th>平均速率</th></tr></thead>
+            <tbody id="trafficRankTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><div class="card-header"><span class="card-title">系统流量趋势</span></div>
+        <div class="chart-container large" id="chartSystemTraffic"></div>
+      </div>
+    </div>
+
+    <!-- Alerts Page -->
+    <div class="page-content" id="page-alerts">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <select class="form-select" id="alertStatusFilter" onchange="loadAlertList()" style="width:auto;padding:8px 12px">
+            <option value="">全部状态</option>
+            <option value="open">未解决</option>
+            <option value="resolved">已解决</option>
+          </select>
+          <select class="form-select" id="alertLevelFilter" onchange="loadAlertList()" style="width:auto;padding:8px 12px">
+            <option value="">全部级别</option>
+            <option value="info">信息</option>
+            <option value="warning">警告</option>
+            <option value="critical">严重</option>
+          </select>
+        </div>
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-default" onclick="loadAlertList()">
+            <i class="fa-solid fa-rotate"></i> 刷新
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead><tr><th>级别</th><th>类型</th><th>标题</th><th>设备</th><th>状态</th><th>时间</th><th>操作</th></tr></thead>
+            <tbody id="alertTableBody"></tbody>
+          </table>
+        </div>
+        <div id="alertPagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Users Page -->
+    <div class="page-content" id="page-users">
+      <div class="toolbar">
+        <div class="toolbar-left"><span style="font-size:14px;color:var(--text-secondary)">用户与角色管理</span></div>
+        <div class="toolbar-right">
+          <button class="btn btn-sm btn-primary" onclick="showCreateUserModal()">
+            <i class="fa-solid fa-plus"></i> 新建用户
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead><tr><th>ID</th><th>用户名</th><th>邮箱</th><th>角色</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead>
+            <tbody id="userTableBody"></tbody>
+          </table>
+        </div>
+        <div id="userPagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Audit Page -->
+    <div class="page-content" id="page-audit">
+      <div class="card">
+        <div class="table-container">
+          <table>
+            <thead><tr><th>时间</th><th>用户</th><th>操作</th><th>资源</th><th>IP</th><th>详情</th></tr></thead>
+            <tbody id="auditTableBody"></tbody>
+          </table>
+        </div>
+        <div id="auditPagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Settings Page -->
+    <div class="page-content" id="page-settings">
+      <div class="card">
+        <div class="card-header"><span class="card-title">扫描配置</span></div>
+        <div id="scanConfigForm">
+          <div class="detail-grid">
+            <div class="form-group">
+              <label class="form-label">启用自动扫描</label>
+              <select class="form-select" id="cfgScanEnabled">
+                <option value="true">启用</option>
+                <option value="false">禁用</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">扫描间隔 (秒)</label>
+              <input type="number" class="form-input" id="cfgScanInterval" min="10" max="3600">
+            </div>
+            <div class="form-group">
+              <label class="form-label">并发 Worker 数</label>
+              <input type="number" class="form-input" id="cfgWorkerCount" min="10" max="500">
+            </div>
+            <div class="form-group">
+              <label class="form-label">超时时间 (毫秒)</label>
+              <input type="number" class="form-input" id="cfgTimeoutMs" min="100" max="5000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">离线判定阈值 (次)</label>
+              <input type="number" class="form-input" id="cfgOfflineThreshold" min="1" max="10">
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="saveScanConfig()" style="margin-top:12px">
+            <i class="fa-solid fa-floppy-disk"></i> 保存配置
+          </button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">系统信息</span></div>
+        <div id="systemInfo"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="createUserModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>新建用户</h3>
+      <button class="btn btn-sm btn-default" onclick="closeModal('createUserModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">用户名</label><input type="text" class="form-input" id="newUserName"></div>
+      <div class="form-group"><label class="form-label">密码</label><input type="password" class="form-input" id="newUserPass"></div>
+      <div class="form-group"><label class="form-label">邮箱</label><input type="email" class="form-input" id="newUserEmail"></div>
+      <div class="form-group">
+        <label class="form-label">角色</label>
+        <select class="form-select" id="newUserRole">
+          <option value="viewer">只读用户</option>
+          <option value="admin">管理员</option>
+          <option value="super_admin">超级管理员</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal('createUserModal')">取消</button>
+      <button class="btn btn-primary" onclick="createUser()">创建</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="editDeviceModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>编辑设备</h3>
+      <button class="btn btn-sm btn-default" onclick="closeModal('editDeviceModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="editDeviceForm"></div>
+    <div class="modal-footer">
+      <button class="btn btn-default" onclick="closeModal('editDeviceModal')">取消</button>
+      <button class="btn btn-primary" onclick="saveDeviceEdit()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script src="/static/js/app.js"></script>
+</body>
+</html>
