@@ -504,77 +504,181 @@ img {
     background: var(--color-surface-elevated);
     border: 1px solid var(--color-border-light);
     border-radius: var(--radius-lg);
-    padding: 36px;
-    transition: all var(--transition-smooth);
     overflow: hidden;
+    transition: all var(--transition-smooth);
     cursor: pointer;
     backdrop-filter: blur(10px);
 }
 
-.project-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--gradient-hero);
-    opacity: 0;
-    transition: opacity var(--transition-smooth);
-}
-
 .project-card:hover {
-    transform: translateY(-4px);
+    transform: translateY(-6px) scale(1.01);
     border-color: rgba(255, 255, 255, 0.2);
-    box-shadow: var(--shadow-glow);
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
 }
 
-.project-card:hover::before {
-    opacity: 1;
-}
-
-.project-card .card-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-md);
+/* ===== Gradient Cover (Apple Music Album Art Style) ===== */
+.project-cover {
+    position: relative;
+    width: 100%;
+    height: 200px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    margin-bottom: 20px;
-    font-weight: 700;
-    color: #fff;
+    overflow: hidden;
+    transition: all var(--transition-smooth);
 }
 
-.project-card .card-icon.icon-1 { background: var(--gradient-card-1); }
-.project-card .card-icon.icon-2 { background: var(--gradient-card-2); }
-.project-card .card-icon.icon-3 { background: var(--gradient-card-3); }
-.project-card .card-icon.icon-4 { background: var(--gradient-card-4); }
-.project-card .card-icon.icon-5 { background: var(--gradient-card-5); }
-.project-card .card-icon.icon-6 { background: var(--gradient-card-6); }
+.project-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.3;
+    transition: opacity var(--transition-smooth);
+}
 
-.project-card h3 {
-    font-size: 22px;
+.project-card:hover .project-cover::before {
+    opacity: 0.5;
+}
+
+.project-cover .cover-text {
+    position: relative;
+    z-index: 3;
+    font-size: 28px;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.95);
+    letter-spacing: -0.03em;
+    padding: 0 24px;
+    text-align: center;
+    line-height: 1.15;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+    transition: transform var(--transition-smooth);
+}
+
+.project-card:hover .project-cover .cover-text {
+    transform: scale(1.06);
+}
+
+.project-cover .cover-category {
+    position: absolute;
+    top: 16px;
+    left: 20px;
+    z-index: 3;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(0, 0, 0, 0.25);
+    padding: 5px 12px;
+    border-radius: 100px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+/* Subtle inner glow — lighter area in center */
+.project-cover::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255,255,255,0.12) 0%, transparent 70%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+/* Subtle grain texture overlay for depth */
+.project-cover .cover-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.06;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+    pointer-events: none;
+}
+
+/* Dark gradient fade at bottom of cover for readability */
+.project-cover .cover-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 50%;
+    z-index: 2;
+    background: linear-gradient(0deg, rgba(0,0,0,0.35) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+/* ===== Apple Music-Inspired Gradient Covers (9 unique palettes) ===== */
+/* Each gradient uses Apple Music's characteristic multi-stop diagonals with rich saturation */
+
+/* 1 — Hot Pink → Coral (energetic, passionate) */
+.cover-1 {
+    background: linear-gradient(135deg, #FF2D55 0%, #FF375F 30%, #FF6482 65%, #FF8E9E 100%);
+}
+/* 2 — Deep Purple → Electric Violet (bold, creative) */
+.cover-2 {
+    background: linear-gradient(135deg, #5E1F8A 0%, #8944CC 25%, #AF52DE 60%, #CA7AF0 100%);
+}
+/* 3 — Emerald → Teal (fresh, growth) */
+.cover-3 {
+    background: linear-gradient(135deg, #007D4C 0%, #1DA86B 30%, #30D158 65%, #6EE7A8 100%);
+}
+/* 4 — Tangerine → Amber (warm, vibrant) */
+.cover-4 {
+    background: linear-gradient(135deg, #E85D04 0%, #FF7B24 30%, #FF9F0A 65%, #FFC043 100%);
+}
+/* 5 — Electric Blue → Cyan (cool, technical) */
+.cover-5 {
+    background: linear-gradient(135deg, #0038A8 0%, #0066E0 30%, #007AFF 60%, #64D2FF 100%);
+}
+/* 6 — Magenta → Orchid (artistic, striking) */
+.cover-6 {
+    background: linear-gradient(135deg, #C41E70 0%, #E8308A 30%, #FF375F 60%, #FF6B8A 100%);
+}
+/* 7 — Gold → Coral Sunset (premium, radiant) */
+.cover-7 {
+    background: linear-gradient(135deg, #B8860B 0%, #E8A817 25%, #FFD60A 55%, #FF9F6E 100%);
+}
+/* 8 — Indigo → Periwinkle Blue (deep, contemplative) */
+.cover-8 {
+    background: linear-gradient(135deg, #1D1160 0%, #3D2DA6 30%, #5E5CE6 60%, #94A3F8 100%);
+}
+/* 9 — Crimson → Fuchsia → Violet (intense, premium) */
+.cover-9 {
+    background: linear-gradient(135deg, #8B0045 0%, #CF0A5C 25%, #BF5AF2 60%, #D48BFF 100%);
+}
+
+.project-card .card-body {
+    padding: 24px 28px 28px;
+}
+
+.project-card .card-body h3 {
+    font-size: 19px;
     font-weight: 700;
     letter-spacing: -0.02em;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     line-height: 1.3;
 }
 
-.project-card h3 a {
+.project-card .card-body h3 a {
     color: var(--color-text);
     transition: color var(--transition-fast);
 }
 
-.project-card h3 a:hover {
+.project-card .card-body h3 a:hover {
     color: var(--color-accent);
 }
 
-.project-card p {
+.project-card .card-body p {
     color: var(--color-text-secondary);
-    font-size: 15px;
-    line-height: 1.6;
-    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .card-link {
@@ -589,6 +693,85 @@ img {
 
 .card-link:hover {
     gap: 10px;
+}
+
+/* ===== Project Detail - Gradient Cover Hero ===== */
+.project-detail-cover {
+    width: 100%;
+    height: 300px;
+    border-radius: var(--radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 32px;
+    position: relative;
+    overflow: hidden;
+}
+
+.project-detail-cover::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 25%, rgba(255,255,255,0.14) 0%, transparent 65%);
+    z-index: 2;
+    pointer-events: none;
+}
+
+.project-detail-cover .detail-cover-text {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.96);
+    letter-spacing: -0.03em;
+    padding: 0 32px;
+    text-align: center;
+    line-height: 1.15;
+    text-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+    position: relative;
+    z-index: 3;
+}
+
+.project-detail-cover .cover-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 55%;
+    z-index: 2;
+    background: linear-gradient(0deg, rgba(0,0,0,0.4) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+.project-detail-cover .cover-grain {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    background-repeat: repeat;
+    background-size: 128px 128px;
+    pointer-events: none;
+}
+
+/* Project meta row */
+.project-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+.project-meta-row .meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    background: rgba(255, 255, 255, 0.06);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ===== Tech Tags ===== */

@@ -24,27 +24,29 @@
 {{ if .FeaturedProjects }}
 <section class="section">
     <div class="section-header">
-        <h2>Selected Projects</h2>
+        <h2>Featured Architecture Projects</h2>
         <a href="/projects" class="section-link">All Projects</a>
     </div>
     <div class="project-grid">
-        {{ $idx := 0 }}
         {{ range .FeaturedProjects }}
-        {{ $idx = add $idx 1 }}
         <article class="project-card" onclick="location.href='/projects/{{ .Slug }}'">
-            <div class="card-icon icon-{{ index (dict "0" "1" "1" "2" "2" "3" "3" "4" "4" "5" "5" "6") (printf "%d" (sub $idx 1)) }}">
-                {{ if eq $idx 1 }}⚙{{ else if eq $idx 2 }}◆{{ else if eq $idx 3 }}◈{{ else if eq $idx 4 }}◇{{ else if eq $idx 5 }}⬡{{ else }}◆{{ end }}
+            <div class="project-cover cover-{{ coverIndex .CoverImage }}">
+                <div class="cover-grain" aria-hidden="true"></div>
+                <div class="cover-fade" aria-hidden="true"></div>
+                <span class="cover-category">{{ .Category }}</span>
+                <span class="cover-text">{{ .Title }}</span>
             </div>
-            <h3><a href="/projects/{{ .Slug }}">{{ .Title }}</a></h3>
-            <p>{{ .Summary }}</p>
-            {{ if .TechStack }}
-            <div class="tech-tags">
-                {{ range split .TechStack "," }}
-                <span class="tech-tag">{{ . }}</span>
+            <div class="card-body">
+                <p>{{ .Summary }}</p>
+                {{ if .TechStack }}
+                <div class="tech-tags">
+                    {{ range split .TechStack "," }}
+                    <span class="tech-tag">{{ . }}</span>
+                    {{ end }}
+                </div>
                 {{ end }}
+                <a href="/projects/{{ .Slug }}" class="card-link">Read Architecture →</a>
             </div>
-            {{ end }}
-            <a href="/projects/{{ .Slug }}" class="card-link">View Case Study →</a>
         </article>
         {{ end }}
     </div>
