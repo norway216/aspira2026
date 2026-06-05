@@ -146,9 +146,11 @@ func (r *Repository) GetDailyStats(ctx context.Context, days int) ([]DailyStat, 
 	var stats []DailyStat
 	for rows.Next() {
 		var s DailyStat
-		if err := rows.Scan(&s.Date, &s.PV, &s.UV); err != nil {
+		var d sql.NullString
+		if err := rows.Scan(&d, &s.PV, &s.UV); err != nil {
 			return nil, err
 		}
+		s.Date = d.String
 		stats = append(stats, s)
 	}
 	return stats, rows.Err()
@@ -197,9 +199,11 @@ func (r *Repository) GetPathStats(ctx context.Context, path string, days int) ([
 	var stats []DailyStat
 	for rows.Next() {
 		var s DailyStat
-		if err := rows.Scan(&s.Date, &s.PV, &s.UV); err != nil {
+		var d sql.NullString
+		if err := rows.Scan(&d, &s.PV, &s.UV); err != nil {
 			return nil, err
 		}
+		s.Date = d.String
 		stats = append(stats, s)
 	}
 	return stats, rows.Err()

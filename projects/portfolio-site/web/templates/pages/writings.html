@@ -17,9 +17,10 @@
     </div>
     {{ end }}
 
+    {{ if .Articles }}
     <div class="article-list">
         {{ range .Articles }}
-        <article class="article-card">
+        <article class="article-card" onclick="location.href='/writings/{{ .Slug }}'" style="cursor:pointer">
             <div class="article-meta">
                 {{ if .Category }}<span>{{ .Category.Name }}</span>{{ end }}
                 {{ if .PublishedAt }}<span>{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
@@ -30,12 +31,19 @@
             {{ if .Tags }}
             <div class="tag-list">
                 {{ range .Tags }}
-                <a href="/writings?tag={{ .Slug }}" class="tag-link">#{{ .Name }}</a>
+                <a href="/writings?tag={{ .Slug }}" class="tag-link" onclick="event.stopPropagation()">#{{ .Name }}</a>
                 {{ end }}
             </div>
             {{ end }}
         </article>
         {{ end }}
     </div>
+    {{ else }}
+    <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <h3>No writings yet</h3>
+        <p>Articles will appear here once they're published.</p>
+    </div>
+    {{ end }}
 </section>
 {{ end }}

@@ -1,21 +1,23 @@
 {{ define "content" }}
 <section class="hero">
-    <p class="eyebrow">Aspira Studio</p>
-    <h1>Building quiet, reliable engineering systems.</h1>
-    <p class="hero-text">
-        I design and build embedded Linux systems, medical imaging software,
-        and backend platforms with C++, Go, Qt and Linux.
-    </p>
-    <div class="hero-tags">
-        <span>Embedded Linux</span>
-        <span>Medical Imaging</span>
-        <span>C++</span>
-        <span>Go</span>
-    </div>
-    <div class="hero-actions">
-        <a href="/projects" class="btn btn-primary">View Projects</a>
-        <a href="/writings" class="btn btn-outline">Read Writings</a>
-        <a href="/resume" class="btn btn-outline">Resume</a>
+    <div class="container">
+        <p class="eyebrow">Aspira Studio</p>
+        <h1>Building quiet, reliable engineering systems.</h1>
+        <p class="hero-text">
+            I design and build embedded Linux systems, medical imaging software,
+            and backend platforms with C++, Go, Qt and Linux.
+        </p>
+        <div class="hero-tags">
+            <span>Embedded Linux</span>
+            <span>Medical Imaging</span>
+            <span>C++</span>
+            <span>Go</span>
+        </div>
+        <div class="hero-actions">
+            <a href="/projects" class="btn btn-gradient">View Projects</a>
+            <a href="/writings" class="btn btn-outline">Read Writings</a>
+            <a href="/resume" class="btn btn-outline">Resume</a>
+        </div>
     </div>
 </section>
 
@@ -23,11 +25,16 @@
 <section class="section">
     <div class="section-header">
         <h2>Selected Projects</h2>
-        <a href="/projects" class="section-link">All Projects &rarr;</a>
+        <a href="/projects" class="section-link">All Projects</a>
     </div>
     <div class="project-grid">
+        {{ $idx := 0 }}
         {{ range .FeaturedProjects }}
-        <article class="project-card">
+        {{ $idx = add $idx 1 }}
+        <article class="project-card" onclick="location.href='/projects/{{ .Slug }}'">
+            <div class="card-icon icon-{{ index (dict "0" "1" "1" "2" "2" "3" "3" "4" "4" "5" "5" "6") (printf "%d" (sub $idx 1)) }}">
+                {{ if eq $idx 1 }}⚙{{ else if eq $idx 2 }}◆{{ else if eq $idx 3 }}◈{{ else if eq $idx 4 }}◇{{ else if eq $idx 5 }}⬡{{ else }}◆{{ end }}
+            </div>
             <h3><a href="/projects/{{ .Slug }}">{{ .Title }}</a></h3>
             <p>{{ .Summary }}</p>
             {{ if .TechStack }}
@@ -37,6 +44,7 @@
                 {{ end }}
             </div>
             {{ end }}
+            <a href="/projects/{{ .Slug }}" class="card-link">View Case Study →</a>
         </article>
         {{ end }}
     </div>
@@ -47,11 +55,11 @@
 <section class="section">
     <div class="section-header">
         <h2>Latest Writings</h2>
-        <a href="/writings" class="section-link">All Writings &rarr;</a>
+        <a href="/writings" class="section-link">All Writings</a>
     </div>
     <div class="article-list-home">
         {{ range .LatestArticles }}
-        <article class="article-card">
+        <article class="article-card" onclick="location.href='/writings/{{ .Slug }}'" style="cursor:pointer">
             <div class="article-meta">
                 {{ if .Category }}<span>{{ .Category.Name }}</span>{{ end }}
                 {{ if .PublishedAt }}<span>{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
@@ -65,31 +73,35 @@
 </section>
 {{ end }}
 
-<section class="section section-focus">
+<section class="section-focus">
     <h2>Engineering Focus</h2>
     <div class="focus-grid">
         <div class="focus-item">
+            <div class="focus-icon">⚙</div>
             <h3>Embedded Linux</h3>
             <p>Yocto, Debian, RK3588, kernel, device drivers, systemd</p>
         </div>
         <div class="focus-item">
+            <div class="focus-icon">◆</div>
             <h3>Medical Imaging</h3>
             <p>Ultrasound, C-mode, OpenGL, Qt, performance optimization</p>
         </div>
         <div class="focus-item">
+            <div class="focus-icon">◈</div>
             <h3>C++ Engineering</h3>
             <p>Memory management, performance analysis, Qt/OpenGL, runtime</p>
         </div>
         <div class="focus-item">
+            <div class="focus-icon">◇</div>
             <h3>Go Backend</h3>
             <p>Web systems, network management, device platforms, APIs</p>
         </div>
     </div>
 </section>
 
-<section class="section section-cta">
+<section class="section-cta">
     <h2>Let's work together.</h2>
     <p>I'm open to collaboration on embedded systems, medical imaging, and backend platform projects.</p>
-    <a href="/contact" class="btn btn-primary">Get in Touch</a>
+    <a href="/contact" class="btn btn-gradient">Get in Touch</a>
 </section>
 {{ end }}

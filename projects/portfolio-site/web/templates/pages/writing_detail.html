@@ -1,12 +1,12 @@
 {{ define "content" }}
-<article class="detail-page article-detail">
+<article class="detail-page">
     <header class="detail-header">
         {{ if .Article.Category }}
         <p class="eyebrow">{{ .Article.Category.Name }}</p>
         {{ end }}
         <h1>{{ .Article.Title }}</h1>
         <p class="detail-summary">{{ .Article.Summary }}</p>
-        <div class="article-meta">
+        <div class="article-meta" style="margin-top:16px;display:flex;gap:16px;flex-wrap:wrap;">
             {{ if .Article.PublishedAt }}
             <span>{{ .Article.PublishedAt.Format "January 2, 2006" }}</span>
             {{ end }}

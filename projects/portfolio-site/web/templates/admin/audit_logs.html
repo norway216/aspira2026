@@ -3,19 +3,19 @@
     <aside class="admin-sidebar">
         <h2>Admin</h2>
         <nav>
-            <a href="/admin">Dashboard</a>
-            <a href="/admin/articles">Articles</a>
-            <a href="/admin/stats">Statistics</a>
-            <a href="/admin/audit" class="active">Audit Logs</a>
-            <a href="/" target="_blank">View Site &rarr;</a>
+            <a href="/admin"><span class="nav-dot"></span> Dashboard</a>
+            <a href="/admin/articles"><span class="nav-dot"></span> Articles</a>
+            <a href="/admin/stats"><span class="nav-dot"></span> Statistics</a>
+            <a href="/admin/audit" class="active"><span class="nav-dot"></span> Audit Logs</a>
+            <a href="/" target="_blank"><span class="nav-dot"></span> View Site</a>
         </nav>
         <form method="POST" action="/admin/logout" class="logout-form">
-            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+            <button type="submit" class="btn btn-ghost btn-sm btn-full">Sign Out</button>
         </form>
     </aside>
     <main class="admin-main">
         <h1>Audit Logs</h1>
-        <p class="page-description">All administrative actions are recorded for security and compliance.</p>
+        <p style="color:var(--color-text-secondary);margin-bottom:24px">All administrative actions are recorded for security and compliance.</p>
 
         {{ if .ActionSummary }}
         <div class="action-summary">

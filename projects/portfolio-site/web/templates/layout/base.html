@@ -8,13 +8,54 @@
     <meta name="description" content="{{ .Description }}">
     <link rel="stylesheet" href="/static/css/app.css">
     <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
+    <!-- Phosphor Icons (free, MIT licensed) -->
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
 </head>
 <body class="site-body">
+    <div class="bg-particles" aria-hidden="true"></div>
     {{ template "header" . }}
     <main class="site-main">
         {{ template "content" . }}
     </main>
     {{ template "footer" . }}
+    <script>
+        // Read CSRF token from cookie
+        function getCSRFToken() {
+            const match = document.cookie.match(/(?:^|;\s*)csrf_token=([^;]*)/);
+            return match ? match[1] : '';
+        }
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const toggle = document.querySelector('.menu-toggle');
+            const nav = document.querySelector('.site-nav');
+            if (toggle && nav) {
+                toggle.addEventListener('click', function() {
+                    nav.classList.toggle('open');
+                });
+            }
+            // Inject CSRF token into all forms that POST
+            document.querySelectorAll('form[method="POST"]').forEach(function(form) {
+                if (!form.querySelector('input[name="csrf_token"]')) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'csrf_token';
+                    input.value = getCSRFToken();
+                    form.appendChild(input);
+                }
+            });
+            // Add scroll effect to header
+            const header = document.querySelector('.site-header');
+            if (header) {
+                window.addEventListener('scroll', function() {
+                    if (window.scrollY > 50) {
+                        header.style.background = 'rgba(0, 0, 0, 0.88)';
+                    } else {
+                        header.style.background = 'rgba(0, 0, 0, 0.72)';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
 {{ end }}
@@ -22,7 +63,11 @@
 {{ define "header" }}
 <header class="site-header">
     <div class="header-inner">
-        <a href="/" class="site-logo">Aspira Studio</a>
+        <a href="/" class="site-logo">
+            <span class="logo-icon">◆</span>
+            Aspira Studio
+        </a>
+        <button class="menu-toggle" aria-label="Toggle menu">☰</button>
         <nav class="site-nav">
             <a href="/projects">Projects</a>
             <a href="/writings">Writings</a>
@@ -37,7 +82,7 @@
 {{ define "footer" }}
 <footer class="site-footer">
     <div class="footer-inner">
-        <p>&copy; {{ .CurrentYear }} Aspira Studio. Built with Go.</p>
+        <p>&copy; {{ .CurrentYear }} Aspira Studio. Built with Go &amp; intent.</p>
         <nav class="footer-nav">
             <a href="/rss.xml">RSS</a>
             <a href="/sitemap.xml">Sitemap</a>

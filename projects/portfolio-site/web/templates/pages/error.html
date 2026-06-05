@@ -1,0 +1,12 @@
+{{ define "content" }}
+<section class="hero" style="padding:160px 32px">
+    <div class="container">
+        <p class="eyebrow">Error</p>
+        <h1 style="font-size:clamp(64px,12vw,120px)">{{ .StatusCode }}</h1>
+        <p class="hero-text" style="max-width:480px">{{ .Description }}</p>
+        <div class="hero-actions" style="margin-top:24px">
+            <a href="/" class="btn btn-gradient">Back to Home</a>
+        </div>
+    </div>
+</section>
+{{ end }}
