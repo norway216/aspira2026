@@ -70,7 +70,7 @@ func (h *AdminHandler) ListArticles(w http.ResponseWriter, r *http.Request) {
 		Page:     page,
 		PageSize: 20,
 		Status:   status,
-		OrderBy:  "created_at DESC",
+		OrderBy:  "a.created_at DESC",
 	}
 
 	articles, total, err := h.svc.ListAll(r.Context(), q)

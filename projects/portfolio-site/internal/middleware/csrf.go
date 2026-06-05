@@ -19,8 +19,12 @@ func NewCSRF() *CSRF {
 // Protect validates CSRF tokens for state-changing requests.
 func (c *CSRF) Protect(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Only check state-changing methods.
+		// Auto-generate CSRF token on GET requests so forms have it available.
 		if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			// Ensure a CSRF cookie is always set for browser clients.
+			if _, err := r.Cookie(c.cookieName); err != nil {
+				c.SetToken(w, r)
+			}
 			next.ServeHTTP(w, r)
 			return
 		}

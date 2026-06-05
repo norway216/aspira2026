@@ -3,22 +3,23 @@
     <aside class="admin-sidebar">
         <h2>Admin</h2>
         <nav>
-            <a href="/admin">Dashboard</a>
-            <a href="/admin/articles" class="active">Articles</a>
-            <a href="/admin/stats">Statistics</a>
-            <a href="/admin/audit">Audit Logs</a>
-            <a href="/" target="_blank">View Site &rarr;</a>
+            <a href="/admin"><span class="nav-dot"></span> Dashboard</a>
+            <a href="/admin/articles" class="active"><span class="nav-dot"></span> Articles</a>
+            <a href="/admin/stats"><span class="nav-dot"></span> Statistics</a>
+            <a href="/admin/audit"><span class="nav-dot"></span> Audit Logs</a>
+            <a href="/" target="_blank"><span class="nav-dot"></span> View Site</a>
         </nav>
         <form method="POST" action="/admin/logout" class="logout-form">
-            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+            <button type="submit" class="btn btn-ghost btn-sm btn-full">Sign Out</button>
         </form>
     </aside>
     <main class="admin-main">
         <div class="admin-header">
-            <h1>Articles</h1>
-            <a href="/admin/articles/new" class="btn btn-primary">New Article</a>
+            <h1 style="margin-bottom:0">Articles</h1>
+            <a href="/admin/articles/new" class="btn btn-gradient">New Article</a>
         </div>
 
+        {{ if .Articles }}
         <table class="admin-table">
             <thead>
                 <tr><th>Title</th><th>Status</th><th>Views</th><th>Created</th><th>Actions</th></tr>
@@ -45,6 +46,14 @@
                 {{ end }}
             </tbody>
         </table>
+        {{ else }}
+        <div class="empty-state">
+            <div class="empty-icon">📝</div>
+            <h3>No articles yet</h3>
+            <p>Create your first article to get started.</p>
+            <a href="/admin/articles/new" class="btn btn-gradient" style="margin-top:16px">New Article</a>
+        </div>
+        {{ end }}
     </main>
 </div>
 {{ end }}

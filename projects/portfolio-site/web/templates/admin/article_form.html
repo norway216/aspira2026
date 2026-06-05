@@ -3,14 +3,14 @@
     <aside class="admin-sidebar">
         <h2>Admin</h2>
         <nav>
-            <a href="/admin">Dashboard</a>
-            <a href="/admin/articles" class="active">Articles</a>
-            <a href="/admin/stats">Statistics</a>
-            <a href="/admin/audit">Audit Logs</a>
-            <a href="/" target="_blank">View Site &rarr;</a>
+            <a href="/admin"><span class="nav-dot"></span> Dashboard</a>
+            <a href="/admin/articles" class="active"><span class="nav-dot"></span> Articles</a>
+            <a href="/admin/stats"><span class="nav-dot"></span> Statistics</a>
+            <a href="/admin/audit"><span class="nav-dot"></span> Audit Logs</a>
+            <a href="/" target="_blank"><span class="nav-dot"></span> View Site</a>
         </nav>
         <form method="POST" action="/admin/logout" class="logout-form">
-            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+            <button type="submit" class="btn btn-ghost btn-sm btn-full">Sign Out</button>
         </form>
     </aside>
     <main class="admin-main">
@@ -19,15 +19,15 @@
         <form method="POST" class="admin-form">
             <div class="form-group">
                 <label for="title">Title</label>
-                <input type="text" id="title" name="title" value="{{ .Article.Title }}" required>
+                <input type="text" id="title" name="title" value="{{ .Article.Title }}" placeholder="Article title" required>
             </div>
             <div class="form-group">
                 <label for="slug">Slug</label>
-                <input type="text" id="slug" name="slug" value="{{ .Article.Slug }}">
+                <input type="text" id="slug" name="slug" value="{{ .Article.Slug }}" placeholder="url-friendly-slug">
             </div>
             <div class="form-group">
                 <label for="summary">Summary</label>
-                <textarea id="summary" name="summary" rows="3" required>{{ .Article.Summary }}</textarea>
+                <textarea id="summary" name="summary" rows="3" placeholder="Brief description of the article" required>{{ .Article.Summary }}</textarea>
             </div>
             <div class="form-group">
                 <label for="category_id">Category</label>
@@ -40,10 +40,10 @@
             </div>
             <div class="form-group">
                 <label for="content_markdown">Content (Markdown)</label>
-                <textarea id="content_markdown" name="content_markdown" rows="20" required>{{ .Article.ContentMarkdown }}</textarea>
+                <textarea id="content_markdown" name="content_markdown" rows="20" placeholder="Write your article in Markdown..." required>{{ .Article.ContentMarkdown }}</textarea>
             </div>
             <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
+                <button type="submit" class="btn btn-gradient">
                     {{ if .IsNew }}Create Draft{{ else }}Save Changes{{ end }}
                 </button>
                 <a href="/admin/articles" class="btn btn-outline">Cancel</a>
