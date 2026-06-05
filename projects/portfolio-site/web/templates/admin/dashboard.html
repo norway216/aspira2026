@@ -1,0 +1,68 @@
+{{ define "content" }}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2>Admin</h2>
+        <nav>
+            <a href="/admin">Dashboard</a>
+            <a href="/admin/articles">Articles</a>
+            <a href="/admin/stats">Statistics</a>
+            <a href="/admin/audit">Audit Logs</a>
+            <a href="/" target="_blank">View Site &rarr;</a>
+        </nav>
+        <form method="POST" action="/admin/logout" class="logout-form">
+            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+        </form>
+    </aside>
+    <main class="admin-main">
+        <h1>Dashboard</h1>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number">{{ .ProjectCount }}</span>
+                <span class="stat-label">Projects</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .ArticleCount }}</span>
+                <span class="stat-label">Articles</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .PublishedCount }}</span>
+                <span class="stat-label">Published</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .DraftCount }}</span>
+                <span class="stat-label">Drafts</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .TotalPV }}</span>
+                <span class="stat-label">Page Views</span>
+            </div>
+        </div>
+
+        <h2>Quick Actions</h2>
+        <div class="quick-actions">
+            <a href="/admin/articles/new" class="btn btn-primary">New Article</a>
+            <a href="/admin/articles" class="btn btn-outline">Manage Articles</a>
+            <a href="/admin/stats" class="btn btn-outline">View Statistics</a>
+            <a href="/admin/audit" class="btn btn-outline">Audit Logs</a>
+        </div>
+
+        {{ if .RecentArticles }}
+        <h2>Recent Articles</h2>
+        <table class="admin-table">
+            <thead>
+                <tr><th>Title</th><th>Status</th><th>Created</th></tr>
+            </thead>
+            <tbody>
+                {{ range .RecentArticles }}
+                <tr>
+                    <td><a href="/admin/articles/{{ .ID }}/edit">{{ .Title }}</a></td>
+                    <td><span class="status-{{ .Status }}">{{ .Status }}</span></td>
+                    <td>{{ .CreatedAt.Format "2006-01-02" }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+        {{ end }}
+    </main>
+</div>
+{{ end }}

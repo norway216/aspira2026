@@ -1,0 +1,28 @@
+{{ define "content" }}
+<article class="detail-page">
+    <header class="detail-header">
+        <p class="eyebrow">{{ .Project.Category }}</p>
+        <h1>{{ .Project.Title }}</h1>
+        <p class="detail-summary">{{ .Project.Summary }}</p>
+        {{ if .Project.TechStack }}
+        <div class="tech-tags">
+            {{ range split .Project.TechStack "," }}
+            <span class="tech-tag">{{ . }}</span>
+            {{ end }}
+        </div>
+        {{ end }}
+        <div class="detail-links">
+            {{ if .Project.GitHubURL }}
+            <a href="{{ .Project.GitHubURL }}" class="btn btn-outline" target="_blank" rel="noopener">GitHub</a>
+            {{ end }}
+            {{ if .Project.DemoURL }}
+            <a href="{{ .Project.DemoURL }}" class="btn btn-outline" target="_blank" rel="noopener">Live Demo</a>
+            {{ end }}
+        </div>
+    </header>
+
+    <div class="prose">
+        {{ safeHTML .Project.ContentHTML }}
+    </div>
+</article>
+{{ end }}

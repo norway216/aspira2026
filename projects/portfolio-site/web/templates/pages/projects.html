@@ -1,0 +1,28 @@
+{{ define "content" }}
+<section class="page-hero">
+    <p class="eyebrow">Projects</p>
+    <h1>Engineering work and case studies.</h1>
+    <p class="page-description">
+        Selected projects across embedded Linux, medical imaging, Go backend systems, and C++ engineering.
+    </p>
+</section>
+
+<section class="section">
+    <div class="project-grid">
+        {{ range .Projects }}
+        <article class="project-card">
+            <h3><a href="/projects/{{ .Slug }}">{{ .Title }}</a></h3>
+            <p>{{ .Summary }}</p>
+            {{ if .TechStack }}
+            <div class="tech-tags">
+                {{ range split .TechStack "," }}
+                <span class="tech-tag">{{ . }}</span>
+                {{ end }}
+            </div>
+            {{ end }}
+            <a href="/projects/{{ .Slug }}" class="card-link">Read Case Study &rarr;</a>
+        </article>
+        {{ end }}
+    </div>
+</section>
+{{ end }}

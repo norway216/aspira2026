@@ -1,0 +1,35 @@
+{{ define "content" }}
+<article class="detail-page article-detail">
+    <header class="detail-header">
+        {{ if .Article.Category }}
+        <p class="eyebrow">{{ .Article.Category.Name }}</p>
+        {{ end }}
+        <h1>{{ .Article.Title }}</h1>
+        <p class="detail-summary">{{ .Article.Summary }}</p>
+        <div class="article-meta">
+            {{ if .Article.PublishedAt }}
+            <span>{{ .Article.PublishedAt.Format "January 2, 2006" }}</span>
+            {{ end }}
+            <span>{{ .Article.ReadingTime }} min read</span>
+            <span>{{ .Article.WordCount }} words</span>
+        </div>
+        {{ if .Article.Tags }}
+        <div class="tag-list">
+            {{ range .Article.Tags }}
+            <a href="/writings?tag={{ .Slug }}" class="tag-link">#{{ .Name }}</a>
+            {{ end }}
+        </div>
+        {{ end }}
+    </header>
+
+    {{ if .Article.TOCHTML }}
+    <nav class="article-toc">
+        {{ safeHTML .Article.TOCHTML }}
+    </nav>
+    {{ end }}
+
+    <div class="prose">
+        {{ safeHTML .Article.ContentHTML }}
+    </div>
+</article>
+{{ end }}

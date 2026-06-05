@@ -1,0 +1,37 @@
+{"time":"2026-06-05T21:30:56.89051997+08:00","level":"INFO","msg":"starting portfolio site","addr":":8080","db_driver":"sqlite3","site_title":"Aspira Studio"}
+{"time":"2026-06-05T21:30:56.891004273+08:00","level":"INFO","msg":"database connected","driver":"sqlite3","dsn":"/home/sa/Lab/Programming/aspira2026/projects/portfolio-site/data/portfolio.db","max_open_conns":25}
+{"time":"2026-06-05T21:30:56.897685031+08:00","level":"INFO","msg":"all migrations applied successfully","count":11}
+panic: pattern "GET /" (registered at /home/sa/Lab/Programming/aspira2026/working/portfolio-site/internal/app/router.go:19) conflicts with pattern "/static/" (registered at /home/sa/Lab/Programming/aspira2026/working/portfolio-site/internal/app/router.go:15):
+GET / matches fewer methods than /static/, but has a more general path pattern
+
+goroutine 1 [running]:
+net/http.(*ServeMux).register(...)
+	/usr/lib/go-1.22/src/net/http/server.go:2738
+net/http.(*ServeMux).HandleFunc(0xc0000af040?, {0xa13d78?, 0xd?}, 0xaefc40?)
+	/usr/lib/go-1.22/src/net/http/server.go:2712 +0x65
+portfolio-site/internal/app.(*Application).Router(0xc000301c20)
+	/home/sa/Lab/Programming/aspira2026/working/portfolio-site/internal/app/router.go:19 +0x129
+main.main()
+	/home/sa/Lab/Programming/aspira2026/working/portfolio-site/cmd/server/main.go:42 +0x3c5
+{"time":"2026-06-05T21:35:10.803004897+08:00","level":"INFO","msg":"starting portfolio site","addr":":8080","db_driver":"sqlite3","site_title":"Aspira Studio"}
+{"time":"2026-06-05T21:35:10.803479759+08:00","level":"INFO","msg":"database connected","driver":"sqlite3","dsn":"/home/sa/Lab/Programming/aspira2026/projects/portfolio-site/data/portfolio.db","max_open_conns":25}
+{"time":"2026-06-05T21:35:10.80432503+08:00","level":"INFO","msg":"all migrations applied successfully","count":11}
+{"time":"2026-06-05T21:35:10.806908735+08:00","level":"INFO","msg":"server started","addr":":8080","read_timeout":10000000000,"write_timeout":15000000000,"idle_timeout":60000000000}
+{"time":"2026-06-05T21:36:52.123637256+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/","query":"","status":200,"bytes":2899,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"1.133262ms","duration_ms":1}
+{"time":"2026-06-05T21:36:52.171110382+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/static/images/favicon.svg","query":"","status":200,"bytes":0,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"4.720358ms","duration_ms":4}
+{"time":"2026-06-05T21:36:59.351922485+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/projects","query":"","status":200,"bytes":1533,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"504.121µs","duration_ms":0}
+{"time":"2026-06-05T21:37:00.752315345+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/writings","query":"","status":200,"bytes":1557,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"702.243µs","duration_ms":0}
+{"time":"2026-06-05T21:37:01.520069256+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/about","query":"","status":200,"bytes":2509,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"109.04µs","duration_ms":0}
+{"time":"2026-06-05T21:37:02.180457511+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/resume","query":"","status":200,"bytes":2227,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"112.126µs","duration_ms":0}
+{"time":"2026-06-05T21:37:05.784669451+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/contact","query":"","status":200,"bytes":2339,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"118.04µs","duration_ms":0}
+{"time":"2026-06-05T21:37:08.888088901+08:00","level":"ERROR","msg":"failed to list projects","error":"count projects: interrupted (9)"}
+{"time":"2026-06-05T21:37:08.888138566+08:00","level":"ERROR","msg":"request completed","method":"GET","path":"/projects","query":"","status":500,"bytes":48,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"112.113µs","duration_ms":0}
+{"time":"2026-06-05T21:37:12.835751123+08:00","level":"ERROR","msg":"failed to get featured projects","error":"count projects: interrupted (9)"}
+{"time":"2026-06-05T21:37:12.835786349+08:00","level":"ERROR","msg":"failed to get latest articles","error":"count articles: interrupted (9)"}
+{"time":"2026-06-05T21:37:12.835870328+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/","query":"","status":200,"bytes":2899,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"168.956µs","duration_ms":0}
+{"time":"2026-06-05T21:37:14.496169242+08:00","level":"ERROR","msg":"failed to list projects","error":"count projects: interrupted (9)"}
+{"time":"2026-06-05T21:37:14.496217239+08:00","level":"ERROR","msg":"request completed","method":"GET","path":"/projects","query":"","status":500,"bytes":48,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"94.132µs","duration_ms":0}
+{"time":"2026-06-05T21:37:17.245874003+08:00","level":"ERROR","msg":"failed to list articles","error":"count articles: interrupted (9)"}
+{"time":"2026-06-05T21:37:17.246135158+08:00","level":"ERROR","msg":"request completed","method":"GET","path":"/writings","query":"","status":500,"bytes":48,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"320.414µs","duration_ms":0}
+{"time":"2026-06-05T21:37:19.355946657+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/resume","query":"","status":200,"bytes":2227,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"52.086µs","duration_ms":0}
+{"time":"2026-06-05T21:37:24.460471863+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/contact","query":"","status":200,"bytes":2339,"ip":"127.0.0.1:34990","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"51.176µs","duration_ms":0}
