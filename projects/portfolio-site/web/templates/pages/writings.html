@@ -1,0 +1,41 @@
+{{ define "content" }}
+<section class="page-hero">
+    <p class="eyebrow">Writings</p>
+    <h1>Engineering notes and field records.</h1>
+    <p class="page-description">
+        Notes on embedded Linux, medical imaging software, Go backend systems, C++ engineering and performance optimization.
+    </p>
+</section>
+
+<section class="section">
+    {{ if .Categories }}
+    <div class="category-filter">
+        <a href="/writings" class="{{ if not .Category }}active{{ end }}">All</a>
+        {{ range .Categories }}
+        <a href="/writings?category={{ .Slug }}" class="{{ if eq $.Category .Slug }}active{{ end }}">{{ .Name }}</a>
+        {{ end }}
+    </div>
+    {{ end }}
+
+    <div class="article-list">
+        {{ range .Articles }}
+        <article class="article-card">
+            <div class="article-meta">
+                {{ if .Category }}<span>{{ .Category.Name }}</span>{{ end }}
+                {{ if .PublishedAt }}<span>{{ .PublishedAt.Format "2006-01-02" }}</span>{{ end }}
+                <span>{{ .ReadingTime }} min read</span>
+            </div>
+            <h2><a href="/writings/{{ .Slug }}">{{ .Title }}</a></h2>
+            <p>{{ .Summary }}</p>
+            {{ if .Tags }}
+            <div class="tag-list">
+                {{ range .Tags }}
+                <a href="/writings?tag={{ .Slug }}" class="tag-link">#{{ .Name }}</a>
+                {{ end }}
+            </div>
+            {{ end }}
+        </article>
+        {{ end }}
+    </div>
+</section>
+{{ end }}

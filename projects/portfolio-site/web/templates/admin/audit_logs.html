@@ -1,0 +1,79 @@
+{{ define "content" }}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2>Admin</h2>
+        <nav>
+            <a href="/admin">Dashboard</a>
+            <a href="/admin/articles">Articles</a>
+            <a href="/admin/stats">Statistics</a>
+            <a href="/admin/audit" class="active">Audit Logs</a>
+            <a href="/" target="_blank">View Site &rarr;</a>
+        </nav>
+        <form method="POST" action="/admin/logout" class="logout-form">
+            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+        </form>
+    </aside>
+    <main class="admin-main">
+        <h1>Audit Logs</h1>
+        <p class="page-description">All administrative actions are recorded for security and compliance.</p>
+
+        {{ if .ActionSummary }}
+        <div class="action-summary">
+            <h3>Action Summary (Last 30 Days)</h3>
+            <div class="summary-tags">
+                {{ range $action, $count := .ActionSummary }}
+                <span class="summary-tag"><strong>{{ $action }}</strong>: {{ $count }}</span>
+                {{ end }}
+            </div>
+        </div>
+        {{ end }}
+
+        <div class="filter-bar">
+            <form method="GET" action="/admin/audit" class="filter-form">
+                <select name="action">
+                    <option value="">All Actions</option>
+                    <option value="login" {{ if eq .Query.Action "login" }}selected{{ end }}>Login</option>
+                    <option value="login_failed" {{ if eq .Query.Action "login_failed" }}selected{{ end }}>Login Failed</option>
+                    <option value="create" {{ if eq .Query.Action "create" }}selected{{ end }}>Create</option>
+                    <option value="update" {{ if eq .Query.Action "update" }}selected{{ end }}>Update</option>
+                    <option value="delete" {{ if eq .Query.Action "delete" }}selected{{ end }}>Delete</option>
+                    <option value="publish" {{ if eq .Query.Action "publish" }}selected{{ end }}>Publish</option>
+                </select>
+                <select name="status">
+                    <option value="">All Status</option>
+                    <option value="success" {{ if eq .Query.Status "success" }}selected{{ end }}>Success</option>
+                    <option value="failure" {{ if eq .Query.Status "failure" }}selected{{ end }}>Failure</option>
+                </select>
+                <button type="submit" class="btn btn-sm btn-outline">Filter</button>
+            </form>
+        </div>
+
+        <table class="admin-table audit-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Actor</th>
+                    <th>Action</th>
+                    <th>Resource</th>
+                    <th>Detail</th>
+                    <th>IP</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{ range .Logs }}
+                <tr>
+                    <td class="time-cell">{{ .CreatedAt.Format "2006-01-02 15:04:05" }}</td>
+                    <td>{{ .ActorName }}</td>
+                    <td><span class="action-{{ .Action }}">{{ .Action }}</span></td>
+                    <td>{{ .ResourceType }}{{ if .ResourceID }} #{{ .ResourceID }}{{ end }}</td>
+                    <td class="detail-cell">{{ .Detail }}</td>
+                    <td class="ip-cell">{{ .IPAddress }}</td>
+                    <td><span class="status-{{ .Status }}">{{ .Status }}</span></td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </main>
+</div>
+{{ end }}

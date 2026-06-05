@@ -1,0 +1,50 @@
+{{ define "content" }}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2>Admin</h2>
+        <nav>
+            <a href="/admin">Dashboard</a>
+            <a href="/admin/articles" class="active">Articles</a>
+            <a href="/admin/stats">Statistics</a>
+            <a href="/admin/audit">Audit Logs</a>
+            <a href="/" target="_blank">View Site &rarr;</a>
+        </nav>
+        <form method="POST" action="/admin/logout" class="logout-form">
+            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+        </form>
+    </aside>
+    <main class="admin-main">
+        <div class="admin-header">
+            <h1>Articles</h1>
+            <a href="/admin/articles/new" class="btn btn-primary">New Article</a>
+        </div>
+
+        <table class="admin-table">
+            <thead>
+                <tr><th>Title</th><th>Status</th><th>Views</th><th>Created</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {{ range .Articles }}
+                <tr>
+                    <td><a href="/admin/articles/{{ .ID }}/edit">{{ .Title }}</a></td>
+                    <td><span class="status-{{ .Status }}">{{ .Status }}</span></td>
+                    <td>{{ .ViewCount }}</td>
+                    <td>{{ .CreatedAt.Format "2006-01-02" }}</td>
+                    <td class="actions">
+                        <a href="/admin/articles/{{ .ID }}/edit" class="btn btn-sm btn-outline">Edit</a>
+                        {{ if eq .Status "draft" }}
+                        <form method="POST" action="/admin/articles/{{ .ID }}/publish" style="display:inline">
+                            <button type="submit" class="btn btn-sm btn-primary">Publish</button>
+                        </form>
+                        {{ end }}
+                        <form method="POST" action="/admin/articles/{{ .ID }}/delete" style="display:inline" onsubmit="return confirm('Delete this article?')">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+    </main>
+</div>
+{{ end }}

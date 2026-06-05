@@ -1,0 +1,91 @@
+{{ define "content" }}
+<div class="admin-layout">
+    <aside class="admin-sidebar">
+        <h2>Admin</h2>
+        <nav>
+            <a href="/admin">Dashboard</a>
+            <a href="/admin/articles">Articles</a>
+            <a href="/admin/stats" class="active">Statistics</a>
+            <a href="/admin/audit">Audit Logs</a>
+            <a href="/" target="_blank">View Site &rarr;</a>
+        </nav>
+        <form method="POST" action="/admin/logout" class="logout-form">
+            <button type="submit" class="btn btn-outline btn-sm">Logout</button>
+        </form>
+    </aside>
+    <main class="admin-main">
+        <h1>Statistics</h1>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="stat-number">{{ .Overview.TotalPV }}</span>
+                <span class="stat-label">Total Page Views</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .Overview.TotalUV }}</span>
+                <span class="stat-label">Unique Visitors</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .Overview.TodayPV }}</span>
+                <span class="stat-label">Today's PV</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-number">{{ .Overview.TodayUV }}</span>
+                <span class="stat-label">Today's UV</span>
+            </div>
+        </div>
+
+        {{ if .Overview.TopPages }}
+        <h2>Top Pages</h2>
+        <table class="admin-table">
+            <thead>
+                <tr><th>Path</th><th>Views</th></tr>
+            </thead>
+            <tbody>
+                {{ range .Overview.TopPages }}
+                <tr>
+                    <td>{{ .Path }}</td>
+                    <td>{{ .ViewCount }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+        {{ end }}
+
+        {{ if .Overview.DailyStats }}
+        <h2>Daily Statistics (Last 30 Days)</h2>
+        <table class="admin-table">
+            <thead>
+                <tr><th>Date</th><th>PV</th><th>UV</th></tr>
+            </thead>
+            <tbody>
+                {{ range .Overview.DailyStats }}
+                <tr>
+                    <td>{{ .Date }}</td>
+                    <td>{{ .PV }}</td>
+                    <td>{{ .UV }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+        {{ end }}
+
+        {{ if .Overview.ReferrerStats }}
+        <h2>Top Referrers</h2>
+        <table class="admin-table">
+            <thead>
+                <tr><th>Referrer</th><th>Count</th></tr>
+            </thead>
+            <tbody>
+                {{ range .Overview.ReferrerStats }}
+                <tr>
+                    <td>{{ .Referrer }}</td>
+                    <td>{{ .Count }}</td>
+                </tr>
+                {{ end }}
+            </tbody>
+        </table>
+        {{ end }}
+    </main>
+</div>
+{{ end }}

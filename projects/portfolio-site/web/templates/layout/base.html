@@ -1,0 +1,47 @@
+{{ define "base" }}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ .Title }}</title>
+    <meta name="description" content="{{ .Description }}">
+    <link rel="stylesheet" href="/static/css/app.css">
+    <link rel="icon" href="/static/images/favicon.svg" type="image/svg+xml">
+</head>
+<body class="site-body">
+    {{ template "header" . }}
+    <main class="site-main">
+        {{ template "content" . }}
+    </main>
+    {{ template "footer" . }}
+</body>
+</html>
+{{ end }}
+
+{{ define "header" }}
+<header class="site-header">
+    <div class="header-inner">
+        <a href="/" class="site-logo">Aspira Studio</a>
+        <nav class="site-nav">
+            <a href="/projects">Projects</a>
+            <a href="/writings">Writings</a>
+            <a href="/about">About</a>
+            <a href="/resume">Resume</a>
+            <a href="/contact">Contact</a>
+        </nav>
+    </div>
+</header>
+{{ end }}
+
+{{ define "footer" }}
+<footer class="site-footer">
+    <div class="footer-inner">
+        <p>&copy; {{ .CurrentYear }} Aspira Studio. Built with Go.</p>
+        <nav class="footer-nav">
+            <a href="/rss.xml">RSS</a>
+            <a href="/sitemap.xml">Sitemap</a>
+        </nav>
+    </div>
+</footer>
+{{ end }}
