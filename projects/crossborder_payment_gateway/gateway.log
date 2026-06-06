@@ -1,5 +1,5 @@
-2026/06/06 19:24:34 Database initialized
-2026/06/06 19:24:34 WebSocket hub started
+2026/06/06 20:55:46 Database initialized
+2026/06/06 20:55:46 WebSocket hub started
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -13,6 +13,7 @@
 [GIN-debug] POST   /api/v1/auth/logout       --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*AuthHandler).Logout-fm (7 handlers)
 [GIN-debug] GET    /api/v1/dashboard         --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*DashboardHandler).GetDashboard-fm (7 handlers)
 [GIN-debug] GET    /api/v1/dashboard/tps-history --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*DashboardHandler).GetTPSHistory-fm (7 handlers)
+[GIN-debug] GET    /api/v1/dashboard/volume-history --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*DashboardHandler).GetVolumeHistory-fm (7 handlers)
 [GIN-debug] GET    /api/v1/dashboard/recent-transactions --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*DashboardHandler).GetRecentTransactions-fm (7 handlers)
 [GIN-debug] GET    /api/v1/transactions      --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*TransactionHandler).ListTransactions-fm (7 handlers)
 [GIN-debug] POST   /api/v1/transactions      --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*TransactionHandler).CreateTransaction-fm (7 handlers)
@@ -31,103 +32,15 @@
 [GIN-debug] POST   /api/v1/exchange-rates    --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*ExchangeHandler).UpsertRate-fm (8 handlers)
 [GIN-debug] GET    /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (6 handlers)
 [GIN-debug] HEAD   /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (6 handlers)
-2026/06/06 19:24:34 ═══════════════════════════════════════════════════════
-2026/06/06 19:24:34   Aspira Cross-Border Payment Gateway
-2026/06/06 19:24:34   Dashboard: http://localhost:8080
-2026/06/06 19:24:34   API Base:  http://localhost:8080/api/v1
-2026/06/06 19:24:34   WebSocket: ws://localhost:8080/ws
-2026/06/06 19:24:34 ═══════════════════════════════════════════════════════
-[GIN] 2026/06/06 - 19:24:35 | 200 |   53.649059ms |             ::1 | POST     "/api/v1/auth/login"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    4.393742ms |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    1.103498ms |       127.0.0.1 | GET      "/static/css/app.css"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    1.601711ms |       127.0.0.1 | GET      "/static/js/ws.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     859.812µs |       127.0.0.1 | GET      "/static/js/components/table.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     818.444µs |       127.0.0.1 | GET      "/static/js/components/chart.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    2.930984ms |       127.0.0.1 | GET      "/static/js/components/toast.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    2.409885ms |       127.0.0.1 | GET      "/static/js/components/modal.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     907.496µs |       127.0.0.1 | GET      "/static/js/components/stat_card.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    2.226124ms |       127.0.0.1 | GET      "/static/js/api.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    1.382458ms |       127.0.0.1 | GET      "/static/js/components/sidebar.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    1.319566ms |       127.0.0.1 | GET      "/static/js/animations.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     855.611µs |       127.0.0.1 | GET      "/static/js/pages/login.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     582.878µs |       127.0.0.1 | GET      "/static/js/pages/dashboard.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     595.066µs |       127.0.0.1 | GET      "/static/js/pages/transactions.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     345.461µs |       127.0.0.1 | GET      "/static/js/pages/audit.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     568.577µs |       127.0.0.1 | GET      "/static/js/pages/merchants.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     482.493µs |       127.0.0.1 | GET      "/static/js/pages/settings.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     413.396µs |       127.0.0.1 | GET      "/static/js/pages/transaction_detail.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     522.664µs |       127.0.0.1 | GET      "/static/js/app.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     2.04482ms |       127.0.0.1 | GET      "/static/js/pages/accounts.js"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     279.177µs |       127.0.0.1 | GET      "/api/v1/auth/profile"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     103.638µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 19:24:41 | 404 |      35.176µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:24:41 | 200 |     337.649µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    2.388922ms |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:24:41 | 200 |    4.287525ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:24:45 | 200 |     783.044µs |       127.0.0.1 | GET      "/api/v1/transactions?page=1&size=20&from=2026-05-30T11%3A24%3A45.013Z&to=2026-06-06T11%3A24%3A45.013Z"
-[GIN] 2026/06/06 - 19:24:50 | 200 |     257.448µs |       127.0.0.1 | GET      "/api/v1/merchants?size=100"
-[GIN] 2026/06/06 - 19:24:50 | 200 |     206.872µs |       127.0.0.1 | GET      "/api/v1/accounts"
-[GIN] 2026/06/06 - 19:24:54 | 200 |    1.026014ms |       127.0.0.1 | GET      "/api/v1/accounts?currency=HKD"
-[GIN] 2026/06/06 - 19:24:58 | 200 |       232.5µs |       127.0.0.1 | GET      "/api/v1/accounts?merchant_id=merchant-001&currency=HKD"
-[GIN] 2026/06/06 - 19:25:04 | 200 |     302.961µs |       127.0.0.1 | GET      "/api/v1/accounts?merchant_id=merchant-002&currency=HKD"
-[GIN] 2026/06/06 - 19:25:11 | 200 |     743.798µs |       127.0.0.1 | GET      "/api/v1/merchants?page=1&size=20"
-[GIN] 2026/06/06 - 19:25:13 | 200 |  100.807066ms |       127.0.0.1 | GET      "/api/v1/audit?page=1&size=30&from=2026-05-30T11%3A25%3A13.447Z&to=2026-06-06T11%3A25%3A13.447Z"
-[GIN] 2026/06/06 - 19:25:14 | 200 |     340.004µs |       127.0.0.1 | GET      "/api/v1/exchange-rates"
-[GIN] 2026/06/06 - 19:25:14 | 404 |      13.347µs |       127.0.0.1 | GET      "/api/v1/system/info"
-[GIN] 2026/06/06 - 19:25:16 | 200 |    1.789355ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:25:16 | 200 |     186.673µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:25:16 | 404 |       9.537µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:25:16 | 200 |    1.518645ms |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:29:23 | 200 |     135.622µs |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      119.82µs |       127.0.0.1 | GET      "/static/css/app.css"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      42.754µs |       127.0.0.1 | GET      "/static/js/api.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |       58.15µs |       127.0.0.1 | GET      "/static/js/ws.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |     111.389µs |       127.0.0.1 | GET      "/static/js/components/table.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      74.253µs |       127.0.0.1 | GET      "/static/js/components/toast.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |       47.55µs |       127.0.0.1 | GET      "/static/js/components/modal.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      55.051µs |       127.0.0.1 | GET      "/static/js/components/chart.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      78.218µs |       127.0.0.1 | GET      "/static/js/components/stat_card.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      39.709µs |       127.0.0.1 | GET      "/static/js/components/sidebar.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      60.642µs |       127.0.0.1 | GET      "/static/js/animations.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      21.623µs |       127.0.0.1 | GET      "/static/js/pages/login.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |        74.1µs |       127.0.0.1 | GET      "/static/js/pages/dashboard.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |     123.469µs |       127.0.0.1 | GET      "/static/js/pages/transactions.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      36.217µs |       127.0.0.1 | GET      "/static/js/pages/accounts.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      47.697µs |       127.0.0.1 | GET      "/static/js/pages/merchants.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      79.969µs |       127.0.0.1 | GET      "/static/js/pages/audit.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      54.906µs |       127.0.0.1 | GET      "/static/js/pages/settings.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |       59.74µs |       127.0.0.1 | GET      "/static/js/pages/transaction_detail.js"
-[GIN] 2026/06/06 - 19:29:23 | 200 |      53.969µs |       127.0.0.1 | GET      "/static/js/app.js"
-[GIN] 2026/06/06 - 19:34:10 | 304 |      96.513µs |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:34:10 | 200 |     614.701µs |       127.0.0.1 | GET      "/api/v1/auth/profile"
-[GIN] 2026/06/06 - 19:34:10 | 200 |      75.427µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 19:34:10 | 200 |    2.262664ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:34:10 | 200 |     351.676µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:34:10 | 404 |      27.312µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:34:10 | 200 |     555.881µs |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:38:53 | 304 |      61.994µs |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:38:53 | 200 |     222.603µs |       127.0.0.1 | GET      "/api/v1/auth/profile"
-[GIN] 2026/06/06 - 19:38:53 | 200 |      93.923µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 19:38:53 | 200 |     1.99563ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:38:53 | 200 |     209.954µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:38:53 | 404 |      11.173µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:38:53 | 200 |     474.637µs |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:51:06 | 304 |      79.159µs |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:51:06 | 200 |     315.621µs |       127.0.0.1 | GET      "/api/v1/auth/profile"
-[GIN] 2026/06/06 - 19:51:06 | 200 |     146.498µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 19:51:06 | 200 |    1.938125ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:51:06 | 404 |       47.52µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:51:06 | 200 |      980.65µs |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:51:06 | 200 |      823.37µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:51:07 | 304 |      44.696µs |       127.0.0.1 | GET      "/"
-[GIN] 2026/06/06 - 19:51:07 | 200 |     504.751µs |       127.0.0.1 | GET      "/api/v1/auth/profile"
-[GIN] 2026/06/06 - 19:51:07 | 200 |     376.112µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 19:51:07 | 200 |    2.149012ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:51:07 | 200 |     220.474µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:51:07 | 404 |      12.791µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:51:07 | 200 |      624.18µs |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
-[GIN] 2026/06/06 - 19:51:36 | 200 |     568.766µs |       127.0.0.1 | GET      "/api/v1/transactions?page=1&size=20&from=2026-05-30T11%3A51%3A36.952Z&to=2026-06-06T11%3A51%3A36.952Z"
-[GIN] 2026/06/06 - 19:51:38 | 404 |      21.577µs |       127.0.0.1 | GET      "/api/v1/dashboard/volume-history"
-[GIN] 2026/06/06 - 19:51:38 | 200 |     446.304µs |       127.0.0.1 | GET      "/api/v1/dashboard/tps-history"
-[GIN] 2026/06/06 - 19:51:38 | 200 |    2.847858ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 19:51:38 | 200 |    1.419616ms |       127.0.0.1 | GET      "/api/v1/transactions?size=10&sort=created_at&order=desc"
+2026/06/06 20:55:46 ═══════════════════════════════════════════════════════
+2026/06/06 20:55:46   Aspira Cross-Border Payment Gateway
+2026/06/06 20:55:46   Dashboard: http://localhost:8080
+2026/06/06 20:55:46   API Base:  http://localhost:8080/api/v1
+2026/06/06 20:55:46   WebSocket: ws://localhost:8080/ws
+2026/06/06 20:55:46 ═══════════════════════════════════════════════════════
+[GIN] 2026/06/06 - 20:55:51 | 200 |   11.602242ms |       127.0.0.1 | GET      "/api/v1/dashboard"
+[GIN] 2026/06/06 - 20:55:56 | 200 |   14.225157ms |       127.0.0.1 | GET      "/api/v1/dashboard"
+[GIN] 2026/06/06 - 20:56:01 | 200 |   10.376822ms |       127.0.0.1 | GET      "/api/v1/dashboard"
+[GIN] 2026/06/06 - 20:56:02 | 200 |     151.582µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
+[GIN] 2026/06/06 - 20:56:51 | 200 |   84.937197ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/06/06 - 20:56:51 | 200 |    10.53408ms |             ::1 | GET      "/api/v1/dashboard"

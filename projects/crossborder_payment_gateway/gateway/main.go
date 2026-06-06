@@ -118,6 +118,7 @@ func main() {
 			// Dashboard
 			protected.GET("/dashboard", dashboardH.GetDashboard)
 			protected.GET("/dashboard/tps-history", dashboardH.GetTPSHistory)
+			protected.GET("/dashboard/volume-history", dashboardH.GetVolumeHistory)
 			protected.GET("/dashboard/recent-transactions", dashboardH.GetRecentTransactions)
 
 			// Transactions
@@ -214,6 +215,7 @@ func broadcastStats(wsHub *websocket.Hub, db database.DB, engineClient *engine.E
 		}
 		stats.EngineConnected = engineClient.IsEnabled() && engineClient.IsConnected()
 		wsHub.BroadcastDashboardStats(stats)
+		wsHub.BroadcastTPSUpdate(stats.CurrentTPS)
 		wsHub.BroadcastEngineHealth(map[string]interface{}{
 			"connected":      stats.EngineConnected,
 			"active_conns":   wsHub.GetActiveConnections(),

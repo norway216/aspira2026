@@ -8,6 +8,8 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
@@ -19,13 +21,55 @@ import (
 )
 
 type TransactionHandler struct {
-	db     database.DB
-	engine *engine.EngineClient
-	wsHub  *websocket.Hub
+	db        database.DB
+	engine    *engine.EngineClient
+	wsHub     *websocket.Hub
+	tpsCounter *TPSCounter
+}
+
+// TPSCounter tracks transactions-per-second in memory for instant WebSocket updates.
+// Uses 5 rotating buckets (one per second) with timestamps for accurate sliding window.
+type TPSCounter struct {
+	mu     sync.Mutex
+	counts [5]int64 // transaction count per second slot
+	times  [5]int64 // unix timestamp for each slot (0 = unused)
+}
+
+func (t *TPSCounter) Record() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now().Unix()
+	idx := now % 5
+
+	// If this bucket is from a previous second, reset it
+	if t.times[idx] != now {
+		t.times[idx] = now
+		t.counts[idx] = 0
+	}
+	t.counts[idx]++
+}
+
+func (t *TPSCounter) CurrentTPS() float64 {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	now := time.Now().Unix()
+	var sum int64
+	var validSeconds int64
+	for i := 0; i < 5; i++ {
+		// Count bucket if it's within the last 5 seconds
+		if t.times[i] > 0 && now-t.times[i] < 5 {
+			sum += t.counts[i]
+			validSeconds++
+		}
+	}
+	if validSeconds == 0 || sum == 0 {
+		return 0
+	}
+	return float64(sum) / float64(validSeconds)
 }
 
 func NewTransactionHandler(db database.DB, engineClient *engine.EngineClient, wsHub *websocket.Hub) *TransactionHandler {
-	return &TransactionHandler{db: db, engine: engineClient, wsHub: wsHub}
+	return &TransactionHandler{db: db, engine: engineClient, wsHub: wsHub, tpsCounter: &TPSCounter{}}
 }
 
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
@@ -68,7 +112,9 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 			if err := h.db.CreateTransaction(txn); err != nil {
 				log.Printf("Failed to save transaction: %v", err)
 			}
+			h.tpsCounter.Record()
 			h.wsHub.BroadcastTransactionUpdate(txn)
+			h.wsHub.BroadcastTPSUpdate(h.tpsCounter.CurrentTPS())
 			c.JSON(http.StatusOK, models.TransactionResponse{Transaction: *txn})
 			return
 		}
@@ -78,7 +124,18 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 	// Internal processing (fallback)
 	txn, err := h.processInternally(req, merchantID.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		errMsg := err.Error()
+		// Business-logic rejections -> 422 (not system errors)
+		if strings.Contains(errMsg, "insufficient") ||
+			strings.Contains(errMsg, "not found") ||
+			strings.Contains(errMsg, "not active") ||
+			strings.Contains(errMsg, "exchange rate") ||
+			strings.Contains(errMsg, "daily limit") ||
+			strings.Contains(errMsg, "monthly limit") {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": errMsg})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": errMsg})
 		return
 	}
 
@@ -170,17 +227,15 @@ func (h *TransactionHandler) processInternally(req models.CreateTransactionReque
 	}
 
 	// Broadcast via WebSocket
+	h.tpsCounter.Record()
 	h.wsHub.BroadcastTransactionUpdate(txn)
+	h.wsHub.BroadcastTPSUpdate(h.tpsCounter.CurrentTPS())
 
 	return txn, nil
 }
 
 func (h *TransactionHandler) getLastHash() string {
-	txns, _, _ := h.db.ListTransactions(database.TransactionQuery{Page: 1, PageSize: 1})
-	if len(txns) > 0 {
-		return txns[0].HashChainCurr
-	}
-	return "0000000000000000000000000000000000000000000000000000000000000000"
+	return h.db.GetLastTransactionHash()
 }
 
 func (h *TransactionHandler) buildTransaction(result engine.TransactionResult, req models.CreateTransactionRequest, merchantID, txnID string) *models.Transaction {

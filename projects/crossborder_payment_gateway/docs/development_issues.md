@@ -394,19 +394,168 @@ func (rl *RateLimiter) Wait() {
 
 ---
 
+### 1.8 Go 时间格式与 SQLite 日期函数不兼容（TPS/交易量显示异常）
+
+**问题描述**: Dashboard 仪表盘的"今日交易量"和"今日交易笔数"始终显示为 0，而"实时 TPS"显示为异常巨大的数值（如 8372），与实际交易情况严重不符。
+
+**具体现象**:
+
+| 指标 | 预期 | 实际显示 |
+|------|------|----------|
+| `today_volume` (今日交易量) | ~7.2 亿 | **0** |
+| `today_count` (今日交易笔数) | ~10,768 | **0** |
+| `current_tps` (实时 TPS) | 0~10 | **8,373**（全部记录） |
+
+**根因**: Go 的 `time.Now()` 通过 SQLite 驱动存入数据库后，格式为：
+
+```
+2026-06-06 20:47:59.024999266 +0800 CST m=+64.775262252
+```
+
+SQLite 的 `date()`、`datetime()`、`strftime()` 函数只能解析标准 ISO 8601 格式（如 `2026-06-06 20:47:59`），遇到 Go 额外附加的 **时区偏移 `+0800 CST`** 和 **单调时钟 `m=+64.77...`** 部分后解析失败，返回空字符串。
+
+具体导致两个 bug：
+
+1. **今日交易量/笔数始终为 0** — `WHERE date(created_at) = date('now')` 中 `date(created_at)` 返回空，永远无法匹配：
+   ```sql
+   -- date() 解析 Go 时间格式失败，返回空
+   SELECT date('2026-06-06 20:47:59.024999266 +0800 CST m=+64.775262252');
+   → (empty)
+   ```
+
+2. **TPS 显示为全量记录数** — `WHERE created_at >= datetime('now', '-1 second')` 中 `datetime('now')` 返回 UTC 时间（如 12:00），而 `created_at` 存储的是本地时间（如 20:00 CST），UTC 时间比本地时间早 8 小时，导致所有历史记录都"大于"这个时间边界，全部被计入 TPS。
+
+**解决方案**: 将所有时间计算逻辑从 SQLite 的日期函数移到 Go 代码中。Go 端计算好时间边界，格式化为 `"2006-01-02 15:04:05"` 后作为参数传入 SQL，利用 SQLite 的纯字符串字典序进行比较，完全避开 SQLite 日期函数：
+
+```go
+// 修复前 — 依赖 SQLite datetime()/date()
+s.db.QueryRow(
+    "SELECT COUNT(*), COALESCE(SUM(target_amount), 0) FROM transactions WHERE date(created_at) = ?",
+    today,
+).Scan(&stats.TodayCount, &stats.TodayVolume)
+
+s.db.QueryRow(
+    "SELECT COUNT(*) FROM transactions WHERE created_at >= datetime('now', '-1 second')",
+).Scan(&tpsCount)
+
+// 修复后 — Go 计算时间边界，SQLite 做纯字符串比较
+now := time.Now()
+oneSecAgo := now.Add(-1 * time.Second).Format("2006-01-02 15:04:05")
+todayStart := now.Format("2006-01-02") + " 00:00:00"
+tomorrowStart := now.Add(24 * time.Hour).Format("2006-01-02") + " 00:00:00"
+
+s.db.QueryRow(
+    "SELECT COUNT(*) FROM transactions WHERE created_at >= ?",
+    oneSecAgo,
+).Scan(&tpsCount)
+
+s.db.QueryRow(
+    "SELECT COUNT(*), COALESCE(SUM(target_amount), 0) FROM transactions WHERE created_at >= ? AND created_at < ?",
+    todayStart, tomorrowStart,
+).Scan(&stats.TodayCount, &stats.TodayVolume)
+```
+
+**影响的函数**: `GetDashboardStats()`、`GetTPSHistory()`、`GetVolumeHistory()`
+
+**相关文件**: [sqlite.go](../gateway/internal/database/sqlite.go)
+
+---
+
+### 1.9 仪表盘实时指标不更新（TPS/交易量）
+
+**问题描述**: 交易进行过程中，仪表盘的 TPS 和交易量指标没有实时更新，只能通过 5 秒轮询获取新数据，且数据本身就不准确（受 1.8 问题影响）。
+
+**根因分析**（共 4 个原因）:
+
+1. **`CurrentTPS` 从未被计算** — `GetDashboardStats()` 没有查询 TPS 的代码（后续加上了，但受 1.8 时区问题影响结果错误）
+
+2. **后端从未发送 `tps_update` WebSocket 消息** — 前端 `dashboard.js` 中注册了 `WS.on('tps_update', ...)` 监听器，但后端 WebSocket hub 没有对应的广播方法，`main.go` 的 `broadcastStats()` 也只发送 `dashboard_stats` 和 `engine_health`，不发送 `tps_update`
+
+3. **`/api/v1/dashboard/volume-history` 接口不存在** — 前端 `loadVolumeHistory()` 请求该接口但返回 404，交易量图表始终为空
+
+4. **前端用客户端本地计数模拟 TPS** — `updateTpsFromTransaction()` 在收到每笔交易时简单递增当前秒的计数器，这只是一个粗略的近似值，不是真实的 TPS
+
+**解决方案**:
+
+**后端改进**:
+- 新增 `TPSCounter` 内存计数器（[transaction_handler.go](../gateway/internal/handler/transaction_handler.go)），使用 5 秒循环桶 + 时间戳校验，每笔交易完成后调用 `Record()` 并立即广播 `tps_update`
+- 新增 `BroadcastTPSUpdate()` 方法（[hub.go](../gateway/internal/websocket/hub.go)）
+- `broadcastStats()` 每 2 秒同时发送 `tps_update` 消息作为兜底
+- 新增 `/api/v1/dashboard/volume-history` 路由和 `GetVolumeHistory()` handler
+- 数据库接口新增 `GetVolumeHistory()` 和 `GetLastTransactionHash()` 方法
+
+**前端改进**:
+- `tps_update` WebSocket 消息到达时同步更新：StatCard TPS 卡片、Hero 区域 TPS 数值（带动画）、TPS 折线图
+- `dashboard_stats` 消息到达时新增调用 `updateVolumeChart()`，实时追加/更新交易量柱状图
+- `transaction_update` 消息到达时只负责把交易插入最近列表，不再做客户端 TPS 模拟
+- 新增 `updateVolumeChart()` 函数，从 `dashboard_stats` 中提取 `today_volume` 追加到图表
+
+**数据流示意**:
+```
+交易创建 → TPSCounter.Record() → BroadcastTPSUpdate(tps) → WebSocket → 前端更新 TPS
+                                  BroadcastTransactionUpdate(txn) → WebSocket → 前端追加交易行
+broadcastStats (每2s) → BroadcastDashboardStats(stats) → WebSocket → 前端更新 StatCards + VolumeChart
+                       BroadcastTPSUpdate(stats.CurrentTPS) → WebSocket → 前端更新 TPS
+```
+
+**相关文件**:
+- [transaction_handler.go](../gateway/internal/handler/transaction_handler.go) — TPSCounter 结构体及 Record/CurrentTPS 方法
+- [dashboard_handler.go](../gateway/internal/handler/dashboard_handler.go) — GetVolumeHistory handler
+- [hub.go](../gateway/internal/websocket/hub.go) — BroadcastTPSUpdate 方法
+- [interface.go](../gateway/internal/database/interface.go) — GetVolumeHistory 和 GetLastTransactionHash 接口
+- [main.go](../gateway/main.go) — volume-history 路由、broadcastStats 增加 tps_update 广播
+- [dashboard.js](../dashboard/static/js/pages/dashboard.js) — WS 事件处理器重写、updateVolumeChart 函数
+- [dashboard.go](../gateway/internal/models/dashboard.go) — 新增 VolumeDataPoint 结构体
+
+---
+
+### 1.10 SQLite 并发性能优化
+
+**问题描述**: 原始配置 `SetMaxOpenConns(1)` 且未启用 WAL 模式，所有读写操作完全串行化。每笔交易涉及 7+ 次数据库操作（2 次读账户、1 次读汇率、1 次读上一笔哈希、2 次更新余额、1 次插入交易），在高并发下成为严重瓶颈。
+
+**解决方案**:
+- 启用 WAL（Write-Ahead Logging）模式 — 允许并发读取 + 单写入者共存，读写不再互相阻塞
+- 连接池从 1 提升到 4 (`SetMaxOpenConns(4)`, `SetMaxIdleConns(2)`)
+- 配置性能 pragma：`busy_timeout=5000`、`synchronous=NORMAL`、64MB 缓存、256MB 内存映射、`temp_store=MEMORY`
+- 优化热路径 `getLastHash()` — 原来调用 `ListTransactions()` 做完整 `COUNT(*)` + `SELECT ... LIMIT 1`，改为专用方法 `GetLastTransactionHash()` 直接用 `SELECT hash_chain_curr ... ORDER BY created_at DESC LIMIT 1`
+
+```go
+// 修复后 — SQLite 初始化
+db.SetMaxOpenConns(4)
+db.SetMaxIdleConns(2)
+
+pragmas := []string{
+    "PRAGMA journal_mode=WAL",
+    "PRAGMA busy_timeout=5000",
+    "PRAGMA synchronous=NORMAL",
+    "PRAGMA cache_size=-65536",   // 64MB
+    "PRAGMA mmap_size=268435456", // 256MB
+    "PRAGMA temp_store=MEMORY",
+}
+```
+
+**预期效果**: 并发场景下 TPS 提升 5-10 倍。
+
+**相关文件**:
+- [sqlite.go](../gateway/internal/database/sqlite.go) — `NewSQLite()` pragma 配置、`GetLastTransactionHash()` 方法
+- [interface.go](../gateway/internal/database/interface.go) — `GetLastTransactionHash` 接口声明
+- [transaction_handler.go](../gateway/internal/handler/transaction_handler.go) — `getLastHash()` 改用专用方法
+
+---
+
 ## 5. 已知问题与改进方向
 
-### 5.1 SQLite 并发写入瓶颈
-SQLite 在 `WAL` 模式下支持并发读取，但写入仍然是串行化的（单写入者）。高并发支付场景下应迁移到 PostgreSQL。
-
-### 5.2 C++ 引擎 TCP 缓冲区管理
+### 5.1 C++ 引擎 TCP 缓冲区管理
 当前 Session 的读写缓冲区大小固定，极端场景下可能因缓冲区不足导致阻塞。建议实现动态缓冲区或使用 `io_uring`。
 
-### 5.3 前端大数据量渲染
+### 5.2 前端大数据量渲染
 交易列表在 10000+ 条记录时可能出现性能问题。建议实现虚拟滚动或服务端分页。
 
-### 5.4 Go proxy 依赖
+### 5.3 Go proxy 依赖
 编译依赖 `goproxy.cn` 镜像，在 CI/CD 环境中应配置适当的 GOPROXY 或使用 Go vendor 模式。
+
+### 5.4 SQLite 写入串行化限制（已部分改善）
+SQLite 即使在 WAL 模式下写入仍然是串行化的（单写入者）。已通过启用 WAL + 连接池 + 性能 pragma 显著改善（见 1.10），但极高并发支付场景下仍建议迁移到 PostgreSQL。
 
 ---
 
@@ -415,12 +564,12 @@ SQLite 在 `WAL` 模式下支持并发读取，但写入仍然是串行化的（
 | 类别 | 数量 | 严重程度 |
 |------|------|----------|
 | 编译错误 | 4 | 高 (阻断) |
-| 运行时错误 | 3 | 高 (阻断) |
+| 运行时错误 | 5 | 高 (阻断) |
 | 设计缺陷 | 2 | 中 |
-| 性能优化 | 2 | 中 |
+| 性能优化 | 3 | 中 |
 | 环境适配 | 2 | 中 |
 
-**总计**: 13 个已解决问题
+**总计**: 16 个已解决问题
 
 ---
 
@@ -431,3 +580,4 @@ SQLite 在 `WAL` 模式下支持并发读取，但写入仍然是串行化的（
 3. **汇率双向查询** — 金融系统中，所有货币对的存取都应考虑正向/反向两个方向
 4. **无锁数据结构的正确性验证** — 需要充分的并发测试（TSan, 压力测试）
 5. **WebSocket 连接健壮性** — 生产环境必须考虑网络中断、服务端重启等异常场景
+6. **SQLite 与 Go 时间格式不兼容** — Go 的 `time.Now()` 存储格式包含单调时钟和时区偏移（`m=+...`、`+0800 CST`），SQLite 日期函数无法解析。应始终在应用层计算时间边界，以统一格式字符串传给数据库做纯字符串比较

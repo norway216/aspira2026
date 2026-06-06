@@ -191,6 +191,10 @@ func (h *Hub) BroadcastDashboardStats(stats interface{}) {
 	h.BroadcastJSON("dashboard_stats", stats)
 }
 
+func (h *Hub) BroadcastTPSUpdate(tps float64) {
+	h.BroadcastJSON("tps_update", map[string]float64{"tps": tps})
+}
+
 func (h *Hub) GetActiveConnections() int {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

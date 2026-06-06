@@ -170,7 +170,7 @@ function formatTimeShort(t) {
 
 function formatCurrency(amount, currency) {
     currency = currency || 'CNY';
-    var symbolMap = { CNY: '¥', USD: '$', EUR: '€', GBP: '£', JPY: '¥', HKD: 'HK$', SGD: 'S$' };
+    var symbolMap = { CNY: '¥', USD: '$', EUR: '€', GBP: '£', JPY: '¥', CHF: 'Fr ', CAD: 'C$', AUD: 'A$', NZD: 'NZ$', SGD: 'S$', HKD: 'HK$' };
     var symbol = symbolMap[currency] || currency + ' ';
     var val = parseFloat(amount) || 0;
     if (currency === 'JPY') {

@@ -9,6 +9,7 @@ type DB interface {
 	ListTransactions(query TransactionQuery) ([]models.Transaction, int64, error)
 	UpdateTransactionStatus(id string, status models.TransactionStatus) error
 	GetTransactionsByStatus(status models.TransactionStatus) ([]models.Transaction, error)
+	GetLastTransactionHash() string
 
 	// Accounts
 	CreateAccount(acct *models.Account) error
@@ -41,6 +42,7 @@ type DB interface {
 	GetDashboardStats() (*models.DashboardStats, error)
 	GetRecentTransactions(limit int) ([]models.Transaction, error)
 	GetTPSHistory(seconds int) ([]models.TPSDataPoint, error)
+	GetVolumeHistory(hours int) ([]models.VolumeDataPoint, error)
 
 	// Lifecycle
 	RunMigrations() error

@@ -44,6 +44,20 @@ func (h *DashboardHandler) GetTPSHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"points": points})
 }
 
+func (h *DashboardHandler) GetVolumeHistory(c *gin.Context) {
+	points, err := h.db.GetVolumeHistory(24)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if points == nil {
+		points = []models.VolumeDataPoint{}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"points": points})
+}
+
 func (h *DashboardHandler) GetRecentTransactions(c *gin.Context) {
 	txns, err := h.db.GetRecentTransactions(50)
 	if err != nil {

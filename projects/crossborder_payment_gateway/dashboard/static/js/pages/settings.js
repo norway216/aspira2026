@@ -140,7 +140,7 @@ async function loadSystemInfo() {
         var data = await API.get('/api/v1/system/info');
         container.innerHTML = '<div class="sys-info-grid">' +
             '<div class="sys-info-row"><span class="sys-info-label">网关版本</span><span class="sys-info-value">' + escapeHtml(data.version || data.gateway_version || '-') + '</span></div>' +
-            '<div class="sys-info-row"><span class="sys-info-label">引擎状态</span><span class="sys-info-value"><span class="status-dot ' + (data.engine_connected ? 'status-connected' : 'status-disconnected') + '"></span>' + (data.engine_connected ? '已连接' : '未连接') + '</span></div>' +
+            '<div class="sys-info-row"><span class="sys-info-label">引擎状态</span><span class="sys-info-value"><span class="status-dot ' + (data.engine_connected ? 'status-connected' : (data.engine_enabled ? 'status-disconnected' : 'status-processing')) + '"></span>' + (data.engine_connected ? '已连接' : (data.engine_enabled ? '未连接' : '内部处理')) + '</span></div>' +
             '<div class="sys-info-row"><span class="sys-info-label">数据库</span><span class="sys-info-value">' + escapeHtml(data.db_driver || data.database || data.db || '-') + '</span></div>' +
             '<div class="sys-info-row"><span class="sys-info-label">运行时间</span><span class="sys-info-value">' + (data.uptime || data.uptime_seconds ? formatDuration(data.uptime_seconds || data.uptime) : '-') + '</span></div>' +
             '<div class="sys-info-row"><span class="sys-info-label">Go 版本</span><span class="sys-info-value">' + escapeHtml(data.go_version || data.go || '-') + '</span></div>' +

@@ -49,8 +49,9 @@ type TxnRequest struct {
 type BenchStats struct {
 	mu          sync.Mutex
 	latencies   []float64
-	errors      int64
-	successes   int64
+	errors      atomic.Int64
+	successes   atomic.Int64
+	skipped     atomic.Int64
 	statusCodes map[int]int64
 	startTime   time.Time
 	tpsWindow   map[int64]int64
@@ -68,10 +69,15 @@ func (s *BenchStats) Record(latency float64, err error, code int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if err != nil || code >= 400 {
-		s.errors++
+	if err != nil {
+		s.errors.Add(1)
+	} else if code == 422 {
+		// Business rejection (insufficient funds, missing rate, etc.) — not a system error
+		s.skipped.Add(1)
+	} else if code >= 400 {
+		s.errors.Add(1)
 	} else {
-		s.successes++
+		s.successes.Add(1)
 		s.latencies = append(s.latencies, latency)
 	}
 	s.statusCodes[code]++
@@ -80,10 +86,8 @@ func (s *BenchStats) Record(latency float64, err error, code int) {
 	s.tpsWindow[sec]++
 }
 
-func (s *BenchStats) GetSnapshot() (successes, errors int64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.successes, s.errors
+func (s *BenchStats) GetSnapshot() (successes, errors, skipped int64) {
+	return s.successes.Load(), s.errors.Load(), s.skipped.Load()
 }
 
 // Report
@@ -94,6 +98,7 @@ type BenchReport struct {
 	TargetRate   int              `json:"target_rate"`
 	TotalReqs    int64            `json:"total_requests"`
 	TotalErrors  int64            `json:"total_errors"`
+	TotalSkipped int64            `json:"total_skipped"`
 	SuccessRate  float64          `json:"success_rate"`
 	AvgTPS       float64          `json:"avg_tps"`
 	PeakTPS      float64          `json:"peak_tps"`
@@ -112,7 +117,10 @@ func (s *BenchStats) GenerateReport(mode string, concurrency, targetRate int) *B
 	defer s.mu.Unlock()
 
 	duration := time.Since(s.startTime).Seconds()
-	total := s.successes + s.errors
+	suc := s.successes.Load()
+	err := s.errors.Load()
+	skp := s.skipped.Load()
+	total := suc + err + skp
 
 	avgTPS := float64(0)
 	if duration > 0 {
@@ -151,7 +159,11 @@ func (s *BenchStats) GenerateReport(mode string, concurrency, targetRate int) *B
 
 	successRate := float64(0)
 	if total > 0 {
-		successRate = float64(s.successes) / float64(total) * 100
+		successRate = float64(suc) / float64(total) * 100
+		// Clamp to [0, 100] to prevent floating-point / race artifacts exceeding 100%
+		if successRate > 100 {
+			successRate = 100
+		}
 	}
 
 	codes := make(map[string]int64)
@@ -165,7 +177,8 @@ func (s *BenchStats) GenerateReport(mode string, concurrency, targetRate int) *B
 		Concurrency:  concurrency,
 		TargetRate:   targetRate,
 		TotalReqs:    total,
-		TotalErrors:  s.errors,
+		TotalErrors:  err,
+		TotalSkipped: skp,
 		SuccessRate:  successRate,
 		AvgTPS:       avgTPS,
 		PeakTPS:      peakTPS,
@@ -300,25 +313,43 @@ func (rl *RateLimiter) Wait() {
 }
 
 // Workload generators
+// Currency -> payer (merchant-1) / payee (merchant-2) account mapping
+var currencyAccounts = map[string]struct{ payer, payee string }{
+	"USD": {"acct-001", "acct-003"},
+	"CNY": {"acct-002", "acct-004"},
+	"EUR": {"acct-005", "acct-014"},
+	"JPY": {"acct-006", "acct-015"},
+	"GBP": {"acct-007", "acct-016"},
+	"CHF": {"acct-008", "acct-017"},
+	"CAD": {"acct-009", "acct-001"}, // fallback payee: USD account
+	"AUD": {"acct-010", "acct-018"},
+	"NZD": {"acct-011", "acct-010"}, // fallback payee: AUD account
+	"SGD": {"acct-012", "acct-019"},
+	"HKD": {"acct-013", "acct-002"}, // fallback payee: CNY account
+}
+
 var (
 	reqCounter int64
-	accounts   = []string{"acct-001", "acct-002", "acct-003", "acct-004"}
-	currencies = []string{"USD", "CNY", "EUR", "JPY", "GBP"}
+	currencies = []string{"USD", "CNY", "EUR", "JPY", "GBP", "CHF", "CAD", "AUD", "NZD", "SGD", "HKD"}
 )
 
 func genPaymentRequest() *TxnRequest {
 	c := atomic.AddInt64(&reqCounter, 1)
-	src := currencies[c%int64(len(currencies))]
-	tgt := "CNY"
-	if src == "CNY" {
-		tgt = "USD"
-	}
-	payerIdx := c % 2
-	payeeIdx := (c/10)%2 + 2
+
+	// Pick source currency and look up its accounts
+	srcIdx := c % int64(len(currencies))
+	src := currencies[srcIdx]
+
+	// Pick a different target currency (rotate through available)
+	tgtIdx := (srcIdx + 1 + c/10) % int64(len(currencies))
+	tgt := currencies[tgtIdx]
+
+	srcAccts := currencyAccounts[src]
+	tgtAccts := currencyAccounts[tgt]
 
 	return &TxnRequest{
-		PayerAccountID: accounts[payerIdx],
-		PayeeAccountID: accounts[payeeIdx],
+		PayerAccountID: srcAccts.payer,
+		PayeeAccountID: tgtAccts.payee,
 		SourceCurrency: src,
 		TargetCurrency: tgt,
 		SourceAmount:   10000 + c%90000,
@@ -432,8 +463,8 @@ func main() {
 	go func() {
 		for range ticker.C {
 			elapsed := time.Since(startTime).Seconds()
-			successes, errors := stats.GetSnapshot()
-			total := successes + errors
+			successes, errors, skipped := stats.GetSnapshot()
+			total := successes + errors + skipped
 			tps := float64(0)
 			if elapsed > 0 {
 				tps = float64(total) / elapsed
@@ -442,9 +473,13 @@ func main() {
 			rate := float64(0)
 			if total > 0 && elapsed > 0 {
 				rate = float64(successes) / float64(total) * 100
+				// Clamp to [0, 100] to prevent display artifacts
+				if rate > 100 {
+					rate = 100
+				}
 			}
-			fmt.Printf("\r[%5.1fs] Workers: %3d | Reqs: %8d | Errors: %5d | TPS: %8.1f | OK: %5.1f%%",
-				elapsed, w, total, errors, tps, rate)
+			fmt.Printf("\r[%5.1fs] Workers: %3d | Reqs: %8d | Errors: %5d | Skip: %5d | TPS: %8.1f | OK: %5.1f%%",
+				elapsed, w, total, errors, skipped, tps, rate)
 		}
 	}()
 

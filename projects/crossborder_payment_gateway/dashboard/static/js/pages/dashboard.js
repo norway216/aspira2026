@@ -154,10 +154,8 @@ function setupDashboardWS() {
     d.wsUnsubs.push(
         WS.on('transaction_update', function (data) {
             var txn = data.transaction || data;
-            updateTpsFromTransaction(txn);
             prependTransaction(txn);
-            // Refresh stats to update counters
-            loadDashboardStats();
+            // Stats and TPS are updated via dashboard_stats and tps_update WS events
         })
     );
 
@@ -171,14 +169,38 @@ function setupDashboardWS() {
         WS.on('dashboard_stats', function (data) {
             updateStatCards(data);
             updateHeroStats(data);
+            // Update volume chart in real-time
+            updateVolumeChart(data);
+            updateLastUpdated();
         })
     );
 
     d.wsUnsubs.push(
         WS.on('tps_update', function (data) {
+            var tpsVal = data.tps || data.value || 0;
+            // Update stat card
+            StatCard.update('stat-tps', {
+                value: tpsVal,
+                label: '实时 TPS',
+                format: 'tps'
+            });
+            // Update hero TPS value
+            var heroTps = document.getElementById('heroTps');
+            if (heroTps) {
+                var newVal = tpsVal.toFixed(1);
+                if (heroTps.textContent !== newVal) {
+                    if (typeof Animations !== 'undefined' && Animations.animateValue) {
+                        Animations.animateValue(heroTps, parseFloat(heroTps.textContent) || 0, tpsVal, 400,
+                            function (v) { return v.toFixed(1); });
+                    } else {
+                        heroTps.textContent = newVal;
+                    }
+                }
+            }
+            // Update TPS chart
             if (d.tpsChart) {
                 var time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                d.tpsHistory.push({ time: time, value: data.tps || data.value || 0 });
+                d.tpsHistory.push({ time: time, value: tpsVal });
                 if (d.tpsHistory.length > d.tpsMaxPoints) {
                     d.tpsHistory.shift();
                 }
@@ -295,8 +317,59 @@ function formatHeroVolume(val) {
     return '¥' + val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+/* Update volume chart with real-time data from dashboard_stats */
+function updateVolumeChart(data) {
+    var d = _dashboard;
+    if (!d.volumeChart) return;
+    var vol = data.today_volume || data.volume || 0;
+    var cnt = data.today_count || 0;
+    if (vol <= 0 && cnt <= 0) return;
+    var time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    // Append a point to the volume chart for real-time effect
+    var opt = d.volumeChart.getOption();
+    var xData = opt.xAxis[0].data || [];
+    var sData = opt.series[0].data || [];
+    // Only add if the time slot is new
+    if (xData.length === 0 || xData[xData.length - 1] !== time) {
+        xData.push(time);
+        sData.push(vol);
+    } else {
+        // Update the last point with latest volume
+        sData[sData.length - 1] = vol;
+    }
+    // Keep max 24 points
+    if (xData.length > 24) {
+        xData.shift();
+        sData.shift();
+    }
+    d.volumeChart.update({
+        xAxis: { data: xData },
+        series: [{ data: sData }]
+    });
+}
+
 function updateEnginePanel(data) {
     if (!data) return;
+
+    var engineEnabled = data.engine_enabled === true;
+    var connected = data.connected || data.status === 'connected';
+
+    // Determine status: enabled+connected, enabled+disconnected, or disabled(internal mode)
+    var dotClass, statusText, labelText;
+    if (engineEnabled && connected) {
+        dotClass = 'status-connected';
+        statusText = '已连接';
+        labelText = '引擎运行中';
+    } else if (engineEnabled && !connected) {
+        dotClass = 'status-disconnected';
+        statusText = '未连接';
+        labelText = '引擎已断开';
+    } else {
+        // Engine is disabled — using internal fallback processing
+        dotClass = 'status-processing';
+        statusText = '内部处理';
+        labelText = '内部处理模式';
+    }
 
     var statusEl = document.getElementById('engineConnStatus');
     var queueEl = document.getElementById('engineQueueDepth');
@@ -304,31 +377,26 @@ function updateEnginePanel(data) {
     var processingEl = document.getElementById('engineProcessing');
 
     if (statusEl) {
-        var connected = data.connected || data.status === 'connected';
-        statusEl.innerHTML = '<span class="status-dot ' + (connected ? 'status-connected' : 'status-disconnected') + '"></span> ' +
-            (connected ? '已连接' : '未连接');
+        statusEl.innerHTML = '<span class="status-dot ' + dotClass + '"></span> ' + statusText;
     }
     if (queueEl) queueEl.textContent = data.queue_depth || data.queueDepth || 0;
     if (workerEl) workerEl.textContent = data.worker_count || data.workerCount || 0;
     if (processingEl) processingEl.textContent = data.processing || 0;
 
-    // Update engine stat card dot
+    // Update engine stat card
     var engineCard = document.getElementById('stat-engine');
     if (engineCard) {
         var dot = engineCard.querySelector('.status-dot');
         if (dot) {
-            var connected = data.connected || data.status === 'connected';
-            dot.className = 'status-dot ' + (connected ? 'status-connected' : 'status-disconnected');
+            dot.className = 'status-dot ' + dotClass;
         }
         var valEl = engineCard.querySelector('.stat-value');
         if (valEl) {
-            var connected = data.connected || data.status === 'connected';
-            valEl.innerHTML = '<span class="status-dot ' + (connected ? 'status-connected' : 'status-disconnected') + '"></span>';
+            valEl.innerHTML = '<span class="status-dot ' + dotClass + '"></span>';
         }
         var labelEl = engineCard.querySelector('.stat-label');
         if (labelEl) {
-            var connected = data.connected || data.status === 'connected';
-            labelEl.textContent = connected ? '引擎运行中' : '引擎已断开';
+            labelEl.textContent = labelText;
         }
     }
 }
