@@ -39,3 +39,14 @@
 {"time":"2026-06-05T22:58:23.105218486+08:00","level":"INFO","msg":"received shutdown signal","signal":"terminated"}
 {"time":"2026-06-05T22:58:23.105385826+08:00","level":"INFO","msg":"closing database connection"}
 {"time":"2026-06-05T22:58:23.105482158+08:00","level":"INFO","msg":"server stopped gracefully"}
+{"time":"2026-06-06T11:01:03.7884381+08:00","level":"INFO","msg":"starting portfolio site","addr":":8080","db_driver":"sqlite3","site_title":"Aspira Studio"}
+{"time":"2026-06-06T11:01:03.789587981+08:00","level":"INFO","msg":"database connected","driver":"sqlite3","dsn":"/home/sa/Lab/Programming/aspira2026/projects/portfolio-site/data/portfolio.db","max_open_conns":25}
+{"time":"2026-06-06T11:01:03.790952644+08:00","level":"INFO","msg":"all migrations applied successfully","count":11}
+{"time":"2026-06-06T11:01:03.798112713+08:00","level":"INFO","msg":"server started","addr":":8080","read_timeout":10000000000,"write_timeout":15000000000,"idle_timeout":60000000000}
+{"time":"2026-06-06T11:01:15.913902303+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/","query":"","status":200,"bytes":11732,"ip":"127.0.0.1:34416","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"9.028266ms","duration_ms":9}
+{"time":"2026-06-06T11:01:17.029773655+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/static/css/app.css","query":"","status":304,"bytes":0,"ip":"127.0.0.1:34416","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"619.527µs","duration_ms":0}
+{"time":"2026-06-06T11:01:27.854490446+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/projects","query":"","status":200,"bytes":20052,"ip":"127.0.0.1:34416","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"3.425706ms","duration_ms":3}
+{"time":"2026-06-06T11:01:53.200258464+08:00","level":"INFO","msg":"request completed","method":"GET","path":"/projects/crossborder-payment-gateway","query":"","status":200,"bytes":11229,"ip":"127.0.0.1:34416","user_agent":"Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:151.0) Gecko/20100101 Firefox/151.0","duration":"1.038636ms","duration_ms":1}
+{"time":"2026-06-06T11:06:00.30484554+08:00","level":"INFO","msg":"received shutdown signal","signal":"terminated"}
+{"time":"2026-06-06T11:06:00.30558795+08:00","level":"INFO","msg":"closing database connection"}
+{"time":"2026-06-06T11:06:00.307159523+08:00","level":"INFO","msg":"server stopped gracefully"}
