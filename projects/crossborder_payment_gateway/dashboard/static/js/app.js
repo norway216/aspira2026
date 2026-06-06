@@ -62,18 +62,15 @@ const App = {
     },
 
     showLogin() {
-        const sidebar = document.getElementById('sidebar');
-        const header = document.getElementById('header');
-        if (sidebar) sidebar.style.display = 'none';
-        if (header) header.style.display = 'none';
-        App.showPage('login');
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+        // Initialize login form handlers
+        if (typeof init_login === 'function') init_login();
     },
 
     showApp() {
-        const sidebar = document.getElementById('sidebar');
-        const header = document.getElementById('header');
-        if (sidebar) sidebar.style.display = 'flex';
-        if (header) header.style.display = 'flex';
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.classList.add('hidden');
         App.updateUserInfo();
         App.navigate('dashboard');
     },
@@ -162,9 +159,6 @@ const App = {
 
             var initFn = null;
             switch (page) {
-                case 'login':
-                    initFn = init_login;
-                    break;
                 case 'dashboard':
                     initFn = init_dashboard;
                     break;
@@ -213,9 +207,6 @@ const App = {
 
             var initFn = null;
             switch (page) {
-                case 'login':
-                    initFn = init_login;
-                    break;
                 case 'dashboard':
                     initFn = init_dashboard;
                     break;
@@ -265,27 +256,22 @@ const App = {
     },
 
     logout() {
-        // Animate logout
-        const mainContent = document.getElementById('main-content');
-        if (mainContent) {
-            mainContent.style.opacity = '0';
-            mainContent.style.transform = 'scale(0.98)';
-            mainContent.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        API.clearToken();
+        WS.disconnect();
+        App.user = null;
+
+        // Clean up current page
+        if (App.currentCleanup && typeof App.currentCleanup === 'function') {
+            try { App.currentCleanup(); } catch (e) { }
+            App.currentCleanup = null;
         }
 
-        setTimeout(function () {
-            API.clearToken();
-            WS.disconnect();
-            App.user = null;
-            App.showLogin();
+        // Show login overlay
+        const overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.classList.remove('hidden');
+        if (typeof init_login === 'function') init_login();
 
-            if (mainContent) {
-                mainContent.style.opacity = '1';
-                mainContent.style.transform = 'scale(1)';
-            }
-
-            history.pushState({ page: 'login' }, '', '#login');
-        }, 250);
+        history.pushState({}, '', '#login');
     },
 
     // Register cleanup function for current page
