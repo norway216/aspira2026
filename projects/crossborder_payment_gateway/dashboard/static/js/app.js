@@ -2,6 +2,7 @@
 const App = {
     currentPage: null,
     user: null,
+    transitioning: false,
 
     init() {
         // Handle sidebar nav clicks
@@ -25,6 +26,24 @@ const App = {
         window.addEventListener('popstate', function (e) {
             if (e.state && e.state.page) {
                 App.showPage(e.state.page, e.state.params || {});
+            }
+        });
+
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function (e) {
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                const overlay = document.getElementById('modal-overlay');
+                if (overlay && !overlay.classList.contains('hidden')) {
+                    closeModal();
+                }
+                // Close sidebar on mobile
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && sidebar.classList.contains('open') && window.innerWidth <= 768) {
+                    sidebar.classList.remove('open');
+                    const overlay = document.getElementById('sidebar-overlay');
+                    if (overlay) overlay.classList.remove('active');
+                }
             }
         });
     },
@@ -60,8 +79,9 @@ const App = {
     },
 
     navigate(page, params) {
+        if (App.transitioning) return;
+
         params = params || {};
-        App.showPage(page, params);
 
         // Update active nav item
         document.querySelectorAll('#sidebar .nav-item').forEach(function (item) {
@@ -82,24 +102,64 @@ const App = {
         if (titleEl) titleEl.textContent = titles[page] || page;
 
         // Push state for back/forward
-        history.pushState({ page: page, params: params }, '', '#' + page);
+        if (history.state && history.state.page === page) {
+            history.replaceState({ page: page, params: params }, '', '#' + page);
+        } else {
+            history.pushState({ page: page, params: params }, '', '#' + page);
+        }
+
+        // Smooth page transition
+        App.transitionTo(page, params);
     },
 
-    showPage(page, params) {
-        params = params || {};
+    transitionTo(page, params) {
+        App.transitioning = true;
 
-        // Hide all pages
+        // Run cleanup for current page
+        if (App.currentCleanup && typeof App.currentCleanup === 'function') {
+            try { App.currentCleanup(); } catch (e) { }
+            App.currentCleanup = null;
+        }
+
+        const prevPage = App.currentPage;
+        const fromEl = prevPage ? document.getElementById('page-' + prevPage) : null;
+        const toEl = document.getElementById('page-' + page);
+
+        // Hide all other pages first
         document.querySelectorAll('.page-content').forEach(function (p) {
-            p.style.display = 'none';
+            if (p !== toEl) {
+                p.style.display = 'none';
+                p.style.animation = '';
+            }
         });
 
-        // Show target page
-        const pageEl = document.getElementById('page-' + page);
-        if (pageEl) {
-            pageEl.style.display = 'block';
-            App.currentPage = page;
+        // Show target page with animation
+        if (toEl) {
+            toEl.style.display = 'block';
+            toEl.style.animation = 'pageEnter 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
 
-            // Call page init function if exists
+            // Re-trigger scroll reveal for new page content
+            setTimeout(function () {
+                const cards = toEl.querySelectorAll('.card:not([data-revealed]), .stat-card:not([data-revealed]), .account-card:not([data-revealed]), .filter-bar:not([data-revealed])');
+                cards.forEach(function (el, i) {
+                    el.setAttribute('data-revealed', 'true');
+                    el.style.opacity = '0';
+                    el.style.transform = 'translateY(16px)';
+                    el.style.transition = 'opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ' + (i * 0.04) + 's, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) ' + (i * 0.04) + 's';
+                    requestAnimationFrame(function () {
+                        el.style.opacity = '1';
+                        el.style.transform = 'translateY(0)';
+                    });
+                });
+            }, 50);
+        }
+
+        App.currentPage = page;
+
+        // Call page init function
+        setTimeout(function () {
+            App.transitioning = false;
+
             var initFn = null;
             switch (page) {
                 case 'login':
@@ -128,7 +188,57 @@ const App = {
                     break;
             }
 
-            // Cleanup previous page if needed
+            if (typeof initFn === 'function') {
+                initFn(params);
+            }
+        }, 100);
+    },
+
+    showPage(page, params) {
+        // Legacy method - use transitionTo
+        params = params || {};
+
+        // Hide all pages
+        document.querySelectorAll('.page-content').forEach(function (p) {
+            p.style.display = 'none';
+            p.style.animation = '';
+        });
+
+        // Show target page
+        const pageEl = document.getElementById('page-' + page);
+        if (pageEl) {
+            pageEl.style.display = 'block';
+            pageEl.style.animation = 'pageEnter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards';
+            App.currentPage = page;
+
+            var initFn = null;
+            switch (page) {
+                case 'login':
+                    initFn = init_login;
+                    break;
+                case 'dashboard':
+                    initFn = init_dashboard;
+                    break;
+                case 'transactions':
+                    initFn = init_transactions;
+                    break;
+                case 'transaction-detail':
+                    initFn = init_transaction_detail;
+                    break;
+                case 'accounts':
+                    initFn = init_accounts;
+                    break;
+                case 'merchants':
+                    initFn = init_merchants;
+                    break;
+                case 'audit':
+                    initFn = init_audit;
+                    break;
+                case 'settings':
+                    initFn = init_settings;
+                    break;
+            }
+
             if (App.currentCleanup && typeof App.currentCleanup === 'function') {
                 try { App.currentCleanup(); } catch (e) { }
                 App.currentCleanup = null;
@@ -155,11 +265,27 @@ const App = {
     },
 
     logout() {
-        API.clearToken();
-        WS.disconnect();
-        App.user = null;
-        App.showLogin();
-        history.pushState({ page: 'login' }, '', '#login');
+        // Animate logout
+        const mainContent = document.getElementById('main-content');
+        if (mainContent) {
+            mainContent.style.opacity = '0';
+            mainContent.style.transform = 'scale(0.98)';
+            mainContent.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+        }
+
+        setTimeout(function () {
+            API.clearToken();
+            WS.disconnect();
+            App.user = null;
+            App.showLogin();
+
+            if (mainContent) {
+                mainContent.style.opacity = '1';
+                mainContent.style.transform = 'scale(1)';
+            }
+
+            history.pushState({ page: 'login' }, '', '#login');
+        }, 250);
     },
 
     // Register cleanup function for current page
@@ -178,6 +304,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Also initialize the app
+    // Notification button click
+    const notifBtn = document.getElementById('notifBtn');
+    if (notifBtn) {
+        notifBtn.addEventListener('click', function () {
+            const badge = document.getElementById('notifBadge');
+            if (badge && !badge.classList.contains('hidden')) {
+                Animations.bounceBadge(badge);
+                Toast.info('暂无新通知');
+            } else {
+                Toast.info('暂无新通知');
+            }
+        });
+    }
+
+    // Initialize the app
     App.init();
 });
