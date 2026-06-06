@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aspira Pay - 跨境支付网关</title>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- Sidebar -->
+        <nav id="sidebar">
+            <div class="sidebar-logo">
+                <div class="logo-icon">
+                    <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                        <rect width="28" height="28" rx="8" fill="url(#logo-grad)"/>
+                        <path d="M8 14L12 18L20 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <defs>
+                            <linearGradient id="logo-grad" x1="0" y1="0" x2="28" y2="28">
+                                <stop stop-color="#FF2D55"/>
+                                <stop offset="0.5" stop-color="#AF52DE"/>
+                                <stop offset="1" stop-color="#007AFF"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <span class="logo-text">Aspira Pay</span>
+            </div>
+            <div class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <rect x="2" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="11" y="2" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="2" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                        <rect x="11" y="11" width="7" height="7" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span>仪表盘</span>
+                </a>
+                <a href="#" class="nav-item" data-page="transactions">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M2 5C2 3.34315 3.34315 2 5 2H15C16.6569 2 18 3.34315 18 5V15C18 16.6569 16.6569 18 15 18H5C3.34315 18 2 16.6569 2 15V5Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M6 12L8 14L14 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span>交易管理</span>
+                </a>
+                <a href="#" class="nav-item" data-page="accounts">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <rect x="2" y="3" width="16" height="14" rx="2" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M2 7H18" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="10" cy="11" r="2" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span>账户管理</span>
+                </a>
+                <a href="#" class="nav-item" data-page="merchants">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M1 7L10 2L19 7V17C19 17.5523 18.5523 18 18 18H2C1.44772 18 1 17.5523 1 17V7Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M7 14C7 12.3431 8.34315 11 10 11C11.6569 11 13 12.3431 13 14" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="10" cy="8" r="1.5" stroke="currentColor" stroke-width="1.5"/>
+                    </svg>
+                    <span>商户管理</span>
+                </a>
+                <a href="#" class="nav-item" data-page="audit">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 2C5.58172 2 2 5.58172 2 10C2 14.4183 5.58172 18 10 18C14.4183 18 18 14.4183 18 10C18 5.58172 14.4183 2 10 2Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M10 6V10L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span>审计日志</span>
+                </a>
+                <a href="#" class="nav-item" data-page="settings">
+                    <svg class="nav-icon" width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <circle cx="10" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M10 1.5V3.5M10 16.5V18.5M3.5 10H1.5M18.5 10H16.5M5.05 5.05L3.64 3.64M16.36 16.36L14.95 14.95M14.95 5.05L16.36 3.64M3.64 16.36L5.05 14.95" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                    <span>系统设置</span>
+                </a>
+            </div>
+            <div class="sidebar-footer">
+                <div class="sidebar-clock" id="sidebarClock"></div>
+                <div class="ws-status" id="wsStatus">
+                    <span class="ws-dot ws-disconnected"></span>
+                    <span>未连接</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Header -->
+        <header id="header">
+            <div class="header-left">
+                <button class="menu-toggle" id="menuToggle" aria-label="Toggle sidebar">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                        <path d="M3 6H21M3 12H21M3 18H21" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <div class="breadcrumb">
+                    <span id="page-title">仪表盘</span>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="header-btn" id="notifBtn" title="通知">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 2C6.68629 2 4 4.68629 4 8V12L2.5 14.5H17.5L16 12V8C16 4.68629 13.3137 2 10 2Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 14.5C8 15.6046 8.89543 16.5 10 16.5C11.1046 16.5 12 15.6046 12 14.5" stroke="currentColor" stroke-width="1.5"/>
+                        <circle cx="10" cy="2" r="1.5" fill="#FF453A"/>
+                    </svg>
+                    <span class="notif-badge hidden" id="notifBadge">0</span>
+                </button>
+                <div class="user-menu" id="userMenu">
+                    <div class="user-avatar" id="userAvatar">
+                        <span id="userInitials">A</span>
+                    </div>
+                    <div class="user-info">
+                        <span class="user-name" id="user-name">用户</span>
+                        <span class="user-role" id="user-role">管理员</span>
+                    </div>
+                    <button class="header-btn logout-btn" onclick="App.logout()" title="退出登录">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <path d="M7 2H3C2.44772 2 2 2.44772 2 3V15C2 15.5523 2.44772 16 3 16H7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M13 12L16 9L13 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M6 9H16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main id="main-content">
+            <!-- Login Page -->
+            <div id="page-login" class="page-content">
+                <div class="login-container">
+                    <div class="login-card">
+                        <div class="login-logo-area">
+                            <div class="login-logo-icon">
+                                <svg width="48" height="48" viewBox="0 0 28 28" fill="none">
+                                    <rect width="28" height="28" rx="8" fill="url(#login-grad)"/>
+                                    <path d="M8 14L12 18L20 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <defs>
+                                        <linearGradient id="login-grad" x1="0" y1="0" x2="28" y2="28">
+                                            <stop stop-color="#FF2D55"/>
+                                            <stop offset="0.5" stop-color="#AF52DE"/>
+                                            <stop offset="1" stop-color="#007AFF"/>
+                                        </linearGradient>
+                                    </defs>
+                                </svg>
+                            </div>
+                            <h1>Aspira Pay</h1>
+                            <p class="login-subtitle">跨境支付网关管理平台</p>
+                        </div>
+                        <form id="loginForm" class="login-form">
+                            <div class="form-group">
+                                <label for="loginUsername">用户名</label>
+                                <input type="text" id="loginUsername" class="form-input" placeholder="请输入用户名" autocomplete="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="loginPassword">密码</label>
+                                <input type="password" id="loginPassword" class="form-input" placeholder="请输入密码" autocomplete="current-password" required>
+                            </div>
+                            <button type="submit" class="btn btn-gradient btn-full" id="loginBtn">
+                                <span>登 录</span>
+                                <div class="btn-spinner hidden" id="loginSpinner">
+                                    <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                                        <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2" stroke-dasharray="30" stroke-linecap="round"/>
+                                    </svg>
+                                </div>
+                            </button>
+                        </form>
+                        <div class="login-footer">
+                            <span class="login-error" id="loginError"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Page -->
+            <div id="page-dashboard" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>仪表盘</h2>
+                    <div class="page-header-actions">
+                        <span class="last-updated" id="lastUpdated">--</span>
+                        <button class="btn btn-ghost btn-sm" onclick="init_dashboard()">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8C14 11.3137 11.3137 14 8 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                <path d="M8 2V5M8 11V14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                            刷新
+                        </button>
+                    </div>
+                </div>
+                <div class="stats-grid" id="dashboardStats">
+                    <div class="stat-card gradient-pink" id="stat-tps">
+                        <div class="stat-value">0</div>
+                        <div class="stat-label">实时 TPS</div>
+                    </div>
+                    <div class="stat-card gradient-blue" id="stat-volume">
+                        <div class="stat-value">¥0</div>
+                        <div class="stat-label">今日交易量</div>
+                    </div>
+                    <div class="stat-card gradient-green" id="stat-success-rate">
+                        <div class="stat-value">0%</div>
+                        <div class="stat-label">交易成功率</div>
+                    </div>
+                    <div class="stat-card gradient-orange" id="stat-engine">
+                        <div class="stat-value">
+                            <span class="status-dot status-disconnected"></span>
+                        </div>
+                        <div class="stat-label">引擎状态</div>
+                    </div>
+                </div>
+                <div class="charts-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">实时 TPS (60秒)</span>
+                        </div>
+                        <div class="chart-container" id="chartTps"></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">24小时交易量</span>
+                        </div>
+                        <div class="chart-container" id="chartVolume"></div>
+                    </div>
+                </div>
+                <div class="content-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">最近交易</span>
+                            <a href="#" class="card-link" onclick="App.navigate('transactions')">查看全部</a>
+                        </div>
+                        <div class="table-wrapper" id="recentTransactions">
+                            <div class="table-placeholder">加载中...</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">引擎状态</span>
+                        </div>
+                        <div id="enginePanel">
+                            <div class="engine-info">
+                                <div class="engine-row">
+                                    <span class="engine-label">连接状态</span>
+                                    <span class="engine-value" id="engineConnStatus">
+                                        <span class="status-dot status-disconnected"></span> 未连接
+                                    </span>
+                                </div>
+                                <div class="engine-row">
+                                    <span class="engine-label">队列深度</span>
+                                    <span class="engine-value" id="engineQueueDepth">0</span>
+                                </div>
+                                <div class="engine-row">
+                                    <span class="engine-label">工作线程</span>
+                                    <span class="engine-value" id="engineWorkerCount">0</span>
+                                </div>
+                                <div class="engine-row">
+                                    <span class="engine-label">处理中</span>
+                                    <span class="engine-value" id="engineProcessing">0</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Transactions Page -->
+            <div id="page-transactions" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>交易管理</h2>
+                </div>
+                <div class="filter-bar">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">状态</label>
+                            <select class="form-select" id="txnStatusFilter">
+                                <option value="">全部状态</option>
+                                <option value="pending">待处理</option>
+                                <option value="processing">处理中</option>
+                                <option value="completed">已完成</option>
+                                <option value="failed">失败</option>
+                                <option value="refunded">已退款</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">时间范围</label>
+                            <select class="form-select" id="txnDateRange">
+                                <option value="today">今天</option>
+                                <option value="week" selected>本周</option>
+                                <option value="month">本月</option>
+                                <option value="custom">自定义</option>
+                            </select>
+                        </div>
+                        <div class="filter-group" id="customDateGroup" style="display:none">
+                            <input type="date" class="form-input" id="txnDateFrom">
+                            <input type="date" class="form-input" id="txnDateTo">
+                        </div>
+                        <div class="filter-group filter-search">
+                            <label class="filter-label">搜索</label>
+                            <input type="text" class="form-input" id="txnSearch" placeholder="交易ID / 参考ID">
+                        </div>
+                        <div class="filter-actions">
+                            <button class="btn btn-primary btn-sm" onclick="loadTransactions()">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                                筛选
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrapper" id="transactionsTable">
+                        <div class="table-placeholder">加载中...</div>
+                    </div>
+                    <div class="pagination" id="txnPagination"></div>
+                </div>
+            </div>
+
+            <!-- Transaction Detail Page -->
+            <div id="page-transaction-detail" class="page-content" style="display:none">
+                <div class="page-header">
+                    <a href="#" class="btn btn-ghost btn-sm" onclick="App.navigate('transactions')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M10 12L6 8L10 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        返回
+                    </a>
+                    <h2>交易详情</h2>
+                </div>
+                <div id="transactionDetailContent">
+                    <div class="table-placeholder">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Accounts Page -->
+            <div id="page-accounts" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>账户管理</h2>
+                </div>
+                <div class="filter-bar">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">商户</label>
+                            <select class="form-select" id="acctMerchantFilter">
+                                <option value="">全部商户</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">币种</label>
+                            <select class="form-select" id="acctCurrencyFilter">
+                                <option value="">全部币种</option>
+                                <option value="USD">USD ($)</option>
+                                <option value="CNY">CNY (¥)</option>
+                                <option value="EUR">EUR (€)</option>
+                                <option value="JPY">JPY (¥)</option>
+                                <option value="GBP">GBP (£)</option>
+                                <option value="HKD">HKD (HK$)</option>
+                                <option value="SGD">SGD (S$)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="account-grid" id="accountGrid">
+                    <div class="table-placeholder">加载中...</div>
+                </div>
+            </div>
+
+            <!-- Merchants Page -->
+            <div id="page-merchants" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>商户管理</h2>
+                    <button class="btn btn-gradient btn-sm" onclick="showCreateMerchant()">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                        </svg>
+                        创建商户
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="table-wrapper" id="merchantsTable">
+                        <div class="table-placeholder">加载中...</div>
+                    </div>
+                    <div class="pagination" id="merchantPagination"></div>
+                </div>
+            </div>
+
+            <!-- Audit Page -->
+            <div id="page-audit" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>审计日志</h2>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="auditAutoRefresh">
+                        <span class="toggle-text">自动刷新</span>
+                    </label>
+                </div>
+                <div class="filter-bar">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label class="filter-label">操作类型</label>
+                            <select class="form-select" id="auditActionFilter">
+                                <option value="">全部操作</option>
+                                <option value="txn.create">创建交易</option>
+                                <option value="txn.refund">退款</option>
+                                <option value="txn.fail">交易失败</option>
+                                <option value="user.login">用户登录</option>
+                                <option value="user.logout">用户登出</option>
+                                <option value="merchant.create">创建商户</option>
+                                <option value="merchant.update">更新商户</option>
+                                <option value="account.create">创建账户</option>
+                                <option value="rate.update">更新汇率</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <label class="filter-label">日期范围</label>
+                            <select class="form-select" id="auditDateRange">
+                                <option value="today">今天</option>
+                                <option value="week" selected>本周</option>
+                                <option value="month">本月</option>
+                            </select>
+                        </div>
+                        <div class="filter-group filter-search">
+                            <label class="filter-label">用户</label>
+                            <input type="text" class="form-input" id="auditUserSearch" placeholder="用户名">
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="table-wrapper" id="auditTable">
+                        <div class="table-placeholder">加载中...</div>
+                    </div>
+                    <div class="pagination" id="auditPagination"></div>
+                </div>
+            </div>
+
+            <!-- Settings Page -->
+            <div id="page-settings" class="page-content" style="display:none">
+                <div class="page-header">
+                    <h2>系统设置</h2>
+                </div>
+                <div class="settings-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">汇率配置</span>
+                            <button class="btn btn-primary btn-sm" onclick="showAddRate()">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M8 3V13M3 8H13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                </svg>
+                                添加汇率
+                            </button>
+                        </div>
+                        <div class="table-wrapper" id="exchangeRatesTable">
+                            <div class="table-placeholder">加载中...</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">系统信息</span>
+                        </div>
+                        <div id="systemInfo">
+                            <div class="table-placeholder">加载中...</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header">
+                            <span class="card-title">开发文档</span>
+                        </div>
+                        <div class="settings-docs">
+                            <p class="settings-desc">查阅 API 文档和接入指南</p>
+                            <a href="/docs" class="btn btn-outline btn-sm" target="_blank">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M2 4C2 2.89543 2.89543 2 4 2H7L9 4H12C13.1046 4 14 4.89543 14 6V12C14 13.1046 13.1046 14 12 14H4C2.89543 14 2 13.1046 2 12V4Z" stroke="currentColor" stroke-width="1.5"/>
+                                </svg>
+                                查看 API 文档
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container"></div>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="modalTitle">标题</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M5 5L15 15M15 5L5 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+            <div class="modal-footer" id="modalFooter">
+                <button class="btn btn-ghost" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" id="modalConfirmBtn" onclick="closeModal()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/api.js"></script>
+    <script src="/static/js/ws.js"></script>
+    <script src="/static/js/components/toast.js"></script>
+    <script src="/static/js/components/modal.js"></script>
+    <script src="/static/js/components/table.js"></script>
+    <script src="/static/js/components/chart.js"></script>
+    <script src="/static/js/components/stat_card.js"></script>
+    <script src="/static/js/components/sidebar.js"></script>
+    <script src="/static/js/pages/login.js"></script>
+    <script src="/static/js/pages/dashboard.js"></script>
+    <script src="/static/js/pages/transactions.js"></script>
+    <script src="/static/js/pages/accounts.js"></script>
+    <script src="/static/js/pages/merchants.js"></script>
+    <script src="/static/js/pages/audit.js"></script>
+    <script src="/static/js/pages/settings.js"></script>
+    <script src="/static/js/pages/transaction_detail.js"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

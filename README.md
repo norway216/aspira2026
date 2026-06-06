@@ -68,17 +68,17 @@
 </p>
 
 <p align="center">
-  <em>9 architecture documents imported as project pages with unique Apple Music-style gradient covers</em>
+  <em>10 architecture documents imported as project pages with unique Apple Music-style gradient covers</em>
 </p>
 
 ### Features
 
 | — | — |
 |---|---|
-| **Design** | Apple Music dark theme with 9 unique gradient palettes |
+| **Design** | Apple Music dark theme with 10 unique gradient palettes |
 | **Backend** | Go 1.22, SQLite, structured JSON logging |
 | **Frontend** | Server-rendered HTML templates, CSS glass morphism |
-| **Projects** | 9 architecture documents (`Medical Imaging`, `Embedded Linux`, `Backend Systems`, `Security`) |
+| **Projects** | 10 architecture documents (`Medical Imaging`, `Embedded Linux`, `Backend Systems`, `Security`) |
 | **Admin** | Dashboard, article CRUD, statistics, audit logs |
 | **Security** | CSRF protection, rate limiting, JWT session auth |
 | **Pages** | Home · Projects · Project Detail · Writings · About · Resume · Contact |
@@ -204,6 +204,17 @@ Token Bucket rate limiting · Multi-strategy load balancing · Node heartbeat + 
 
 </td>
 </tr>
+<tr>
+<td>
+
+#### 📡 [crossborder_payment_gateway](projects/crossborder_payment_gateway/)
+**Cross-Border Payment Gateway**  
+Go API gateway + C++20 lock-free engine · SHA-256 hash chain audit · WebSocket real-time TPS dashboard · Benchmark client  
+`Go` `C++20` `Gin` `WebSocket` `SQLite` `ECharts` `Docker`
+
+</td>
+<td></td>
+</tr>
 </table>
 
 ### C++ Embedded & Desktop
@@ -309,7 +320,7 @@ One-click deploy script · .ko modules · Firmware files · Udev configuration
 
 ## ◈ Architecture Documents
 
-The following design documents map to code implementations and serve as the 9 projects in the [portfolio site](#-portfolio-site--live-at-localhost8080):
+The following design documents map to code implementations and serve as the 10 projects in the [portfolio site](#-portfolio-site--live-at-localhost8080):
 
 <table>
 <tr><th>Document</th><th>Code</th><th>Category</th></tr>
@@ -322,6 +333,7 @@ The following design documents map to code implementations and serve as the 9 pr
 <tr><td><a href="projects/iris_recognition_cpp_nn_architecture.md">Iris Recognition NN System</a></td><td><a href="projects/iris_recognition_system/">iris_recognition_system</a></td><td>Medical Imaging</td></tr>
 <tr><td><a href="projects/embedded_face_recognition_architecture.md">Face Recognition System</a></td><td><a href="projects/embedded_face_recognition/">embedded_face_recognition</a></td><td>Medical Imaging</td></tr>
 <tr><td><a href="projects/android_iris_camera_architecture.md">Android Iris Camera</a></td><td>—</td><td>Medical Imaging</td></tr>
+<tr><td><a href="projects/crossborder_payment_gateway_architecture.md">Cross-Border Payment Gateway</a></td><td><a href="projects/crossborder_payment_gateway/">crossborder-payment-gateway</a></td><td>Backend Systems</td></tr>
 <tr><td><a href="projects/minimal_portfolio_architecture.md">Portfolio Site Design</a></td><td><a href="projects/portfolio-site/">portfolio-site</a></td><td>Backend Systems</td></tr>
 </table>
 
@@ -347,11 +359,11 @@ The following design documents map to code implementations and serve as the 9 pr
 ## ◈ Stats
 
 ```
-  Projects      18+    (code + docs)
-  Go services    4     (lan-monitor, ops-platform, gateway, proxy)
+  Projects      19+    (code + docs)
+  Go services    5     (lan-monitor, ops-platform, gateway, proxy, payment-gateway)
   C++ projects   7     (wallet ×2, iris, face, ultrasound ×2, yolo)
-  Design docs   10     (.md architecture specifications)
-  Portfolio      9     (English architecture pages on Aspira Studio)
+  Design docs   11     (.md architecture specifications)
+  Portfolio     10     (English architecture pages on Aspira Studio)
 ```
 
 ---
