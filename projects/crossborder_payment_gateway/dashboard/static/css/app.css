@@ -1136,6 +1136,69 @@ code {
     color: var(--color-text-tertiary);
 }
 
+/* New state machine badges (architecture §5.3.2) */
+.badge-created,
+.badge-quote_locked {
+    background: rgba(100, 210, 255, 0.12);
+    color: var(--color-cyan);
+}
+
+.badge-compliance_prechecked,
+.badge-payment_pending {
+    background: rgba(255, 159, 10, 0.12);
+    color: var(--color-orange);
+}
+
+.badge-payment_executing {
+    background: rgba(0, 122, 255, 0.12);
+    color: var(--color-blue);
+    animation: badgeProcessing 2s ease-in-out infinite;
+}
+
+.badge-payment_confirmed,
+.badge-settlement_proofed {
+    background: rgba(48, 209, 88, 0.12);
+    color: var(--color-green);
+}
+
+.badge-reconciled,
+.badge-closed {
+    background: rgba(48, 209, 88, 0.18);
+    color: var(--color-green-dark, #1a8c3e);
+}
+
+.badge-risk_rejected,
+.badge-payment_failed {
+    background: rgba(255, 69, 58, 0.12);
+    color: var(--color-red);
+}
+
+.badge-refund_pending {
+    background: rgba(175, 82, 222, 0.1);
+    color: var(--color-purple);
+}
+
+.badge-disputed {
+    background: rgba(255, 69, 58, 0.15);
+    color: #ff3b30;
+}
+
+.badge-frozen {
+    background: rgba(142, 142, 147, 0.15);
+    color: var(--color-text-secondary);
+}
+
+.badge-manual_review {
+    background: rgba(255, 149, 0, 0.12);
+    color: #ff9500;
+}
+
+.badge-cancelled {
+    background: rgba(142, 142, 147, 0.12);
+    color: var(--color-text-tertiary);
+    text-decoration: line-through;
+}
+
 /* ===== Status Dot ===== */
 .status-dot {
     display: inline-block;

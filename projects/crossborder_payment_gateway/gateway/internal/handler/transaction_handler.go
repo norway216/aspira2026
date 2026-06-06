@@ -144,6 +144,21 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 		log.Printf("Engine error: %v, falling back to internal processing", err)
 	}
 
+	// API key authentication — validate request signature if present
+	if apiKey := c.GetHeader("X-Api-Key"); apiKey != "" {
+		// API key mode: authenticate merchant via API key
+		m, err := h.db.GetMerchantByAPIKey(apiKey)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid api key"})
+			return
+		}
+		if m.Status != "active" {
+			c.JSON(http.StatusForbidden, gin.H{"error": "merchant account is " + m.Status})
+			return
+		}
+		merchantID = m.ID
+	}
+
 	// Internal processing (fallback)
 	txn, err := h.processInternally(req, merchantID.(string))
 	if err != nil {
@@ -246,7 +261,7 @@ func (h *TransactionHandler) processInternally(req models.CreateTransactionReque
 		UsdToTargetRate: usdToTgtRate,
 		ExchangeRate:    srcToUsdRate * usdToTgtRate, // effective rate
 		Fee:             req.Fee,
-		Status:          models.TxnCompleted,
+		Status:          models.StatusPaymentConfirmed, // Payment confirmed directly (internal processing)
 		Description:     req.Description,
 		ReferenceID:     req.ReferenceID,
 		CallbackURL:     req.CallbackURL,
@@ -351,14 +366,20 @@ func (h *TransactionHandler) RefundTransaction(c *gin.Context) {
 		return
 	}
 
-	if txn.Status != models.TxnCompleted {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "only completed transactions can be refunded"})
+	if txn.Status != models.StatusPaymentConfirmed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "only confirmed transactions can be refunded"})
 		return
 	}
 
 	var req models.RefundRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		req.Reason = "manual refund"
+	}
+
+	// Transition original to refund_pending first
+	if err := h.db.UpdateTransactionStatusValidated(id, models.StatusPaymentConfirmed, models.StatusRefundPending); err != nil {
+		c.JSON(http.StatusConflict, gin.H{"error": "failed to initiate refund: " + err.Error()})
+		return
 	}
 
 	// Reverse the transaction
@@ -381,7 +402,7 @@ func (h *TransactionHandler) RefundTransaction(c *gin.Context) {
 		TargetAmount:    txn.SourceAmount,
 		ExchangeRate:    1.0 / txn.ExchangeRate,
 		Fee:             0,
-		Status:          models.TxnCompleted,
+		Status:          models.StatusRefunded,
 		Description:     fmt.Sprintf("Refund for %s: %s", id, req.Reason),
 		ReferenceID:     fmt.Sprintf("REFUND-%s", id),
 		CallbackURL:     txn.CallbackURL,
@@ -407,7 +428,7 @@ func (h *TransactionHandler) RefundTransaction(c *gin.Context) {
 	}
 
 	// Mark original as refunded
-	h.db.UpdateTransactionStatus(id, models.TxnRefunded)
+	h.db.UpdateTransactionStatusValidated(id, models.StatusRefundPending, models.StatusRefunded)
 
 	h.wsHub.BroadcastTransactionUpdate(refund)
 

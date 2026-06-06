@@ -532,13 +532,31 @@ function prependTransaction(txn) {
 
 function getStatusLabel(status) {
     var map = {
+        // Positive flow (architecture §5.3.2)
+        created: '已创建',
+        quote_locked: '报价已锁定',
+        compliance_prechecked: '合规预审通过',
+        payment_pending: '待支付',
+        payment_executing: '支付处理中',
+        payment_confirmed: '支付已确认',
+        settlement_proofed: '结算已证明',
+        reconciled: '已对账',
+        closed: '已关闭',
+        // Exception states
+        risk_rejected: '风控拒绝',
+        payment_failed: '支付失败',
+        refund_pending: '退款处理中',
+        refunded: '已退款',
+        disputed: '争议中',
+        frozen: '已冻结',
+        manual_review: '人工审核',
+        cancelled: '已取消',
+        // Legacy
         pending: '待处理',
         processing: '处理中',
         completed: '已完成',
         failed: '失败',
-        refunded: '已退款',
-        success: '成功',
-        cancelled: '已取消'
+        success: '成功'
     };
     return map[status] || status;
 }

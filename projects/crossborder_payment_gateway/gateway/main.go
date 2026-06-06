@@ -14,11 +14,14 @@ import (
 
 	"github.com/aspira/crossborder-payment-gateway/config"
 	"github.com/aspira/crossborder-payment-gateway/internal/auth"
+	"github.com/aspira/crossborder-payment-gateway/internal/channel"
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
 	"github.com/aspira/crossborder-payment-gateway/internal/engine"
+	"github.com/aspira/crossborder-payment-gateway/internal/events"
 	"github.com/aspira/crossborder-payment-gateway/internal/exchange"
 	"github.com/aspira/crossborder-payment-gateway/internal/handler"
 	"github.com/aspira/crossborder-payment-gateway/internal/middleware"
+	"github.com/aspira/crossborder-payment-gateway/internal/saga"
 	"github.com/aspira/crossborder-payment-gateway/internal/websocket"
 	"github.com/gin-gonic/gin"
 )
@@ -80,6 +83,21 @@ func main() {
 	rateService := exchange.NewRateService(cfg.Exchange.APIURL, cfg.Exchange.RefreshInterval, cfg.Exchange.Enabled)
 	rateService.StartAutoRefresh(cfg.Exchange.RefreshInterval)
 
+	// Initialize internal event bus (foundation for §5.7 event-driven architecture)
+	eventBus := events.NewEventBus()
+	log.Println("Event bus initialized")
+
+	// Initialize payment channel registry (§5.4 Payment Execution Layer)
+	channelRegistry := channel.NewChannelRegistry()
+	channelRegistry.Register(channel.NewMockBankChannel("mock-bank"))
+	channelRegistry.Register(channel.NewMockPSPChannel("mock-psp"))
+	log.Printf("Payment channels registered: %v", channelRegistry.List())
+
+	// Initialize saga orchestrator (§8.2 Saga workflow)
+	sagaOrchestrator := saga.NewOrchestrator(db)
+	sagaOrchestrator.Register(saga.NewPaymentSaga(db, eventBus, channelRegistry))
+	log.Printf("Sagas registered: %v", sagaOrchestrator.ListSagas())
+
 	// Initialize handlers
 	authH := handler.NewAuthHandler(db, jwtMgr)
 	txnH := handler.NewTransactionHandler(db, engineClient, wsHub, rateService)
@@ -88,6 +106,8 @@ func main() {
 	dashboardH := handler.NewDashboardHandler(db, engineClient)
 	auditH := handler.NewAuditHandler(db)
 	exchangeH := handler.NewExchangeHandler(db, rateService)
+	quoteH := handler.NewQuoteHandler(db, rateService)
+	reconciliationH := handler.NewReconciliationHandler(db)
 
 	// Setup Gin
 	if cfg.Server.Mode == "release" {
@@ -126,12 +146,12 @@ func main() {
 			protected.GET("/dashboard/volume-history", dashboardH.GetVolumeHistory)
 			protected.GET("/dashboard/recent-transactions", dashboardH.GetRecentTransactions)
 
-			// Transactions
+			// Transactions (write ops protected by idempotency)
 			protected.GET("/transactions", txnH.ListTransactions)
-			protected.POST("/transactions", txnH.CreateTransaction)
+			protected.POST("/transactions", middleware.Idempotency(db), txnH.CreateTransaction)
 			protected.GET("/transactions/stats", txnH.GetStats)
 			protected.GET("/transactions/:id", txnH.GetTransaction)
-			protected.POST("/transactions/:id/refund", txnH.RefundTransaction)
+			protected.POST("/transactions/:id/refund", middleware.Idempotency(db), txnH.RefundTransaction)
 
 			// Accounts
 			protected.GET("/accounts", acctH.ListAccounts)
@@ -152,6 +172,45 @@ func main() {
 			protected.GET("/exchange-rates/live", exchangeH.GetLiveRates)
 			protected.POST("/exchange-rates/refresh", middleware.AdminRequired(), exchangeH.RefreshRates)
 			protected.POST("/exchange-rates", middleware.AdminRequired(), exchangeH.UpsertRate)
+
+			// Quotes (§5.1: POST /api/v1/quote)
+			protected.POST("/quote", middleware.Idempotency(db), quoteH.CreateQuote)
+			protected.GET("/quote/:id", quoteH.GetQuote)
+			protected.POST("/quote/:id/accept", quoteH.AcceptQuote)
+			protected.POST("/quote/:id/cancel", quoteH.CancelQuote)
+			protected.GET("/quotes", quoteH.ListQuotes)
+
+			// Reconciliation (§13: GET /api/v1/reconciliation/report)
+			protected.GET("/reconciliation/report", reconciliationH.GetReport)
+			protected.POST("/reconciliation/run", middleware.AdminRequired(), reconciliationH.RunReconciliation)
+			protected.GET("/reconciliation/discrepancies", reconciliationH.GetDiscrepancies)
+
+			// Saga management (admin only)
+			protected.GET("/sagas", middleware.AdminRequired(), func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"sagas": sagaOrchestrator.ListSagas()})
+			})
+
+			// Channel health
+			protected.GET("/channels/health", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{"channels": channelRegistry.HealthStatus()})
+			})
+
+			// Event bus stats
+			protected.GET("/events/stats", func(c *gin.Context) {
+				c.JSON(http.StatusOK, gin.H{
+					"total_subscribers": eventBus.TotalSubscriberCount(),
+					"last_hash":         eventBus.GetLastHash(),
+				})
+			})
+		}
+
+		// External API key auth routes (for merchant API access with signature verification)
+		external := api.Group("/ext")
+		external.Use(middleware.SignatureVerification(db))
+		{
+			external.POST("/quote", middleware.Idempotency(db), quoteH.CreateQuote)
+			external.POST("/transactions", middleware.Idempotency(db), txnH.CreateTransaction)
+			external.GET("/transactions/:id", txnH.GetTransaction)
 		}
 	}
 
