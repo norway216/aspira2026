@@ -1,0 +1,431 @@
+/* ===== Dashboard Page ===== */
+var _dashboard = {
+    tpsChart: null,
+    volumeChart: null,
+    refreshTimer: null,
+    wsUnsubs: [],
+    tpsHistory: [],
+    tpsMaxPoints: 60
+};
+
+function init_dashboard() {
+    var d = _dashboard;
+
+    // Load stats
+    loadDashboardStats();
+
+    // Init TPS chart
+    d.tpsChart = Chart.create('chartTps', {
+        tooltip: {
+            trigger: 'axis',
+            formatter: function (params) {
+                var p = params[0];
+                if (!p) return '';
+                return p.axisValue + '<br/>TPS: <strong>' + p.value + '</strong>';
+            }
+        },
+        xAxis: {
+            type: 'category',
+            data: []
+        },
+        yAxis: {
+            type: 'value',
+            name: 'TPS',
+            min: 0
+        },
+        series: [{
+            name: 'TPS',
+            type: 'line',
+            smooth: true,
+            showSymbol: false,
+            lineStyle: {
+                color: '#FF2D55',
+                width: 2
+            },
+            areaStyle: {
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: 'rgba(255,45,85,0.3)' },
+                        { offset: 1, color: 'rgba(255,45,85,0.02)' }
+                    ]
+                }
+            },
+            data: []
+        }],
+        grid: { top: 15, right: 15, bottom: 25, left: 45 }
+    });
+
+    // Init Volume chart
+    d.volumeChart = Chart.create('chartVolume', {
+        tooltip: {
+            trigger: 'axis',
+            formatter: function (params) {
+                var p = params[0];
+                if (!p) return '';
+                return p.axisValue + '<br/>交易量: <strong>' + formatCurrency(p.value) + '</strong>';
+            }
+        },
+        xAxis: {
+            type: 'category',
+            data: []
+        },
+        yAxis: {
+            type: 'value',
+            name: '交易量'
+        },
+        series: [{
+            name: '交易量',
+            type: 'bar',
+            barWidth: '60%',
+            itemStyle: {
+                borderRadius: [4, 4, 0, 0],
+                color: {
+                    type: 'linear',
+                    x: 0, y: 0, x2: 0, y2: 1,
+                    colorStops: [
+                        { offset: 0, color: '#007AFF' },
+                        { offset: 1, color: 'rgba(0,122,255,0.3)' }
+                    ]
+                }
+            },
+            data: []
+        }],
+        grid: { top: 15, right: 15, bottom: 25, left: 55 }
+    });
+
+    // Load TPS history
+    loadTpsHistory();
+    loadVolumeHistory();
+
+    // Load recent transactions
+    loadRecentTransactions();
+
+    // WebSocket listeners
+    setupDashboardWS();
+
+    // Auto-refresh fallback every 5s
+    d.refreshTimer = setInterval(function () {
+        if (!WS.connected) {
+            loadDashboardStats();
+        }
+    }, 5000);
+
+    // Update last updated time
+    updateLastUpdated();
+
+    // Register cleanup
+    App.setCleanup(cleanup_dashboard);
+}
+
+function cleanup_dashboard() {
+    var d = _dashboard;
+    if (d.refreshTimer) {
+        clearInterval(d.refreshTimer);
+        d.refreshTimer = null;
+    }
+    // Unsubscribe WS handlers
+    d.wsUnsubs.forEach(function (fn) { if (typeof fn === 'function') fn(); });
+    d.wsUnsubs = [];
+    // Dispose charts
+    if (d.tpsChart) { d.tpsChart.dispose(); d.tpsChart = null; }
+    if (d.volumeChart) { d.volumeChart.dispose(); d.volumeChart = null; }
+}
+
+function setupDashboardWS() {
+    var d = _dashboard;
+
+    // Unsubscribe old
+    d.wsUnsubs.forEach(function (fn) { if (typeof fn === 'function') fn(); });
+    d.wsUnsubs = [];
+
+    d.wsUnsubs.push(
+        WS.on('transaction_update', function (data) {
+            var txn = data.transaction || data;
+            // Update TPS
+            updateTpsFromTransaction(txn);
+            // Prepend to recent transactions
+            prependTransaction(txn);
+            // Update volume stat
+            loadDashboardStats();
+        })
+    );
+
+    d.wsUnsubs.push(
+        WS.on('engine_health', function (data) {
+            updateEnginePanel(data);
+        })
+    );
+
+    d.wsUnsubs.push(
+        WS.on('dashboard_stats', function (data) {
+            updateStatCards(data);
+        })
+    );
+
+    d.wsUnsubs.push(
+        WS.on('tps_update', function (data) {
+            if (d.tpsChart) {
+                var time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                d.tpsHistory.push({ time: time, value: data.tps || data.value || 0 });
+                if (d.tpsHistory.length > d.tpsMaxPoints) {
+                    d.tpsHistory.shift();
+                }
+                d.tpsChart.update({
+                    xAxis: { data: d.tpsHistory.map(function (p) { return p.time; }) },
+                    series: [{ data: d.tpsHistory.map(function (p) { return p.value; }) }]
+                });
+            }
+        })
+    );
+}
+
+function updateTpsFromTransaction(txn) {
+    var d = _dashboard;
+    if (d.tpsChart) {
+        var time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        // Increment last TPS point or add new
+        if (d.tpsHistory.length > 0) {
+            var last = d.tpsHistory[d.tpsHistory.length - 1];
+            if (last.time === time) {
+                last.value = (parseFloat(last.value) || 0) + 1;
+            } else {
+                d.tpsHistory.push({ time: time, value: 1 });
+            }
+        } else {
+            d.tpsHistory.push({ time: time, value: 1 });
+        }
+        if (d.tpsHistory.length > d.tpsMaxPoints) {
+            d.tpsHistory.shift();
+        }
+        d.tpsChart.update({
+            xAxis: { data: d.tpsHistory.map(function (p) { return p.time; }) },
+            series: [{ data: d.tpsHistory.map(function (p) { return p.value; }) }]
+        });
+    }
+}
+
+async function loadDashboardStats() {
+    try {
+        var data = await API.get('/api/v1/dashboard');
+        updateStatCards(data);
+        if (data.engine) {
+            updateEnginePanel(data.engine);
+        }
+        updateLastUpdated();
+    } catch (e) {
+        // Silent fail - WS may provide updates
+    }
+}
+
+function updateStatCards(data) {
+    StatCard.update('stat-tps', {
+        value: data.tps || data.current_tps || 0,
+        label: '实时 TPS',
+        format: 'tps'
+    });
+
+    StatCard.update('stat-volume', {
+        value: data.today_volume || data.volume || 0,
+        label: '今日交易量',
+        format: 'currency'
+    });
+
+    var successRate = data.success_rate !== undefined ? data.success_rate : (data.rate || 0);
+    StatCard.update('stat-success-rate', {
+        value: successRate,
+        label: '交易成功率',
+        format: 'percent',
+        trend: data.trend,
+        trendUp: data.trend_up
+    });
+}
+
+function updateEnginePanel(data) {
+    if (!data) return;
+
+    var statusEl = document.getElementById('engineConnStatus');
+    var queueEl = document.getElementById('engineQueueDepth');
+    var workerEl = document.getElementById('engineWorkerCount');
+    var processingEl = document.getElementById('engineProcessing');
+
+    if (statusEl) {
+        var connected = data.connected || data.status === 'connected';
+        statusEl.innerHTML = '<span class="status-dot ' + (connected ? 'status-connected' : 'status-disconnected') + '"></span> ' +
+            (connected ? '已连接' : '未连接');
+    }
+    if (queueEl) queueEl.textContent = data.queue_depth || data.queueDepth || 0;
+    if (workerEl) workerEl.textContent = data.worker_count || data.workerCount || 0;
+    if (processingEl) processingEl.textContent = data.processing || 0;
+
+    // Update engine stat card dot
+    var engineCard = document.getElementById('stat-engine');
+    if (engineCard) {
+        var dot = engineCard.querySelector('.status-dot');
+        if (dot) {
+            var connected = data.connected || data.status === 'connected';
+            dot.className = 'status-dot ' + (connected ? 'status-connected' : 'status-disconnected');
+        }
+        var valEl = engineCard.querySelector('.stat-value');
+        if (valEl) {
+            var connected = data.connected || data.status === 'connected';
+            valEl.innerHTML = '<span class="status-dot ' + (connected ? 'status-connected' : 'status-disconnected') + '"></span>';
+        }
+        var labelEl = engineCard.querySelector('.stat-label');
+        if (labelEl) {
+            var connected = data.connected || data.status === 'connected';
+            labelEl.textContent = connected ? '引擎运行中' : '引擎已断开';
+        }
+    }
+}
+
+async function loadTpsHistory() {
+    try {
+        var data = await API.get('/api/v1/dashboard/tps-history');
+        var points = data.data || data.points || data;
+        if (Array.isArray(points) && points.length > 0) {
+            _dashboard.tpsHistory = points.map(function (p) {
+                return {
+                    time: p.time || p.t || formatTimeShort(p.timestamp),
+                    value: p.value || p.tps || p.v || 0
+                };
+            });
+            if (_dashboard.tpsHistory.length > _dashboard.tpsMaxPoints) {
+                _dashboard.tpsHistory = _dashboard.tpsHistory.slice(-_dashboard.tpsMaxPoints);
+            }
+            if (_dashboard.tpsChart) {
+                _dashboard.tpsChart.update({
+                    xAxis: { data: _dashboard.tpsHistory.map(function (p) { return p.time; }) },
+                    series: [{ data: _dashboard.tpsHistory.map(function (p) { return p.value; }) }]
+                });
+            }
+        }
+    } catch (e) { }
+}
+
+async function loadVolumeHistory() {
+    try {
+        var data = await API.get('/api/v1/dashboard/volume-history');
+        var points = data.data || data.points || data;
+        if (Array.isArray(points) && points.length > 0) {
+            if (_dashboard.volumeChart) {
+                _dashboard.volumeChart.update({
+                    xAxis: { data: points.map(function (p) { return p.time || p.hour || p.label || '-'; }) },
+                    series: [{ data: points.map(function (p) { return p.value || p.volume || p.v || 0; }) }]
+                });
+            }
+        }
+    } catch (e) { }
+}
+
+async function loadRecentTransactions() {
+    var container = document.getElementById('recentTransactions');
+    if (!container) return;
+
+    try {
+        var data = await API.get('/api/v1/transactions?size=10&sort=created_at&order=desc');
+        var txns = data.data || data.transactions || [];
+        renderRecentTxns(txns);
+    } catch (e) {
+        container.innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
+    }
+}
+
+function renderRecentTxns(txns) {
+    var container = document.getElementById('recentTransactions');
+    if (!container) return;
+
+    if (!txns || txns.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>暂无交易记录</p></div>';
+        return;
+    }
+
+    var html = '<table class="data-table">';
+    html += '<thead><tr>' +
+        '<th>时间</th><th>交易ID</th><th>商户</th><th>金额</th><th>状态</th>' +
+        '</tr></thead><tbody>';
+
+    for (var i = 0; i < Math.min(txns.length, 10); i++) {
+        var t = txns[i];
+        var time = formatTimeShort(t.created_at || t.time || t.timestamp);
+        var txnId = truncateMiddle(t.id || t.txn_id || t.transaction_id, 12);
+        var merchant = t.merchant_name || t.merchant || '-';
+        var sourceAmount = formatCurrency(t.source_amount || t.amount, t.source_currency || t.currency);
+        var targetAmount = formatCurrency(t.target_amount, t.target_currency);
+        var status = t.status || 'pending';
+        var statusLabel = getStatusLabel(status);
+
+        html += '<tr onclick="App.navigate(\'transaction-detail\', {id: \'' + escapeHtml(String(t.id || t.txn_id)) + '\'})" style="cursor:pointer">' +
+            '<td class="time-cell">' + time + '</td>' +
+            '<td class="txn-id">' + txnId + '</td>' +
+            '<td>' + escapeHtml(merchant) + '</td>' +
+            '<td class="amount-cell">' + sourceAmount + ' → ' + targetAmount + '</td>' +
+            '<td><span class="badge badge-' + status + '">' + statusLabel + '</span></td>' +
+            '</tr>';
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+function prependTransaction(txn) {
+    if (!txn) return;
+    var container = document.getElementById('recentTransactions');
+    if (!container) return;
+    var table = container.querySelector('.data-table');
+    if (!table) {
+        // Re-render if table doesn't exist
+        loadRecentTransactions();
+        return;
+    }
+
+    var tbody = table.querySelector('tbody');
+    if (!tbody) return;
+
+    var time = formatTimeShort(txn.created_at || txn.time || txn.timestamp);
+    var txnId = truncateMiddle(txn.id || txn.txn_id || txn.transaction_id, 12);
+    var merchant = txn.merchant_name || txn.merchant || '-';
+    var sourceAmount = formatCurrency(txn.source_amount || txn.amount, txn.source_currency || txn.currency);
+    var targetAmount = formatCurrency(txn.target_amount, txn.target_currency);
+    var status = txn.status || 'pending';
+    var statusLabel = getStatusLabel(status);
+
+    var row = document.createElement('tr');
+    row.className = 'new-row';
+    row.style.cursor = 'pointer';
+    row.setAttribute('onclick', 'App.navigate(\'transaction-detail\', {id: \'' + escapeHtml(String(txn.id || txn.txn_id)) + '\'})');
+    row.innerHTML =
+        '<td class="time-cell">' + time + '</td>' +
+        '<td class="txn-id">' + txnId + '</td>' +
+        '<td>' + escapeHtml(merchant) + '</td>' +
+        '<td class="amount-cell">' + sourceAmount + ' → ' + targetAmount + '</td>' +
+        '<td><span class="badge badge-' + status + '">' + statusLabel + '</span></td>';
+
+    // Remove last row if more than 10
+    if (tbody.children.length >= 10) {
+        tbody.removeChild(tbody.lastChild);
+    }
+
+    tbody.insertBefore(row, tbody.firstChild);
+}
+
+function getStatusLabel(status) {
+    var map = {
+        pending: '待处理',
+        processing: '处理中',
+        completed: '已完成',
+        failed: '失败',
+        refunded: '已退款',
+        success: '成功',
+        cancelled: '已取消'
+    };
+    return map[status] || status;
+}
+
+function updateLastUpdated() {
+    var el = document.getElementById('lastUpdated');
+    if (el) {
+        el.textContent = '更新于 ' + new Date().toLocaleTimeString('zh-CN');
+    }
+}

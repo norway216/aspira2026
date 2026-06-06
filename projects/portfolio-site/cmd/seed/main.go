@@ -96,6 +96,14 @@ var projects = []ProjectDef{
 		Summary:   "An experimental platform for learning and validating network system design through multi-node proxy forwarding, traffic statistics collection, rate limiting with Token Bucket algorithm, load balancing strategies, node heartbeat monitoring with health checking and automatic failover, Prometheus/Grafana visualization, and Docker Compose-based deployment for lab environments.",
 		ContentHTML: englishTrafficLab,
 	},
+	{
+		Title:     "Cross-Border Payment Gateway with Real-Time Monitoring",
+		Slug:      "crossborder-payment-gateway",
+		Category:  "Backend Systems",
+		TechStack: "Go, C++20, Gin, WebSocket, SQLite, ECharts, Docker, OpenSSL",
+		Summary:   "A high-performance cross-border payment gateway system featuring a Go API gateway with JWT authentication and WebSocket real-time push, a C++20 transaction engine with lock-free SPSC/MPMC queues and work-stealing thread pool, SHA-256 hash chain audit integrity, Apple Music-style dark theme dashboard with ECharts real-time TPS monitoring, and a Go benchmark client for concurrency and latency validation.",
+		ContentHTML: englishCrossBorderPayment,
+	},
 }
 
 func main() {
@@ -825,5 +833,119 @@ const englishTrafficLab = `
 <li>Detection avoidance or anti-probing techniques</li>
 <li>Commercial proxy service architectures</li>
 <li>Any technique that bypasses network regulations or authorized access controls</li>
+</ul>
+`
+
+	const englishCrossBorderPayment = `
+<h2>1. System Architecture Overview</h2>
+<p>A high-performance, stable cross-border payment gateway system designed for processing international transactions with real-time monitoring, audit trail integrity, and a modern web management dashboard.</p>
+
+<pre><code>User Client -> Go API Gateway -> C++ Transaction Engine -> Database
+                    |                    |
+                 WebSocket           Message Queue
+                    |                    |
+              Web Dashboard         Audit Log System
+</code></pre>
+
+<h2>2. Technology Stack</h2>
+<table>
+<tr><th>Module</th><th>Technology</th><th>Description</th></tr>
+<tr><td>API Gateway</td><td>Go (Gin)</td><td>HTTP/HTTPS, JWT auth, WebSocket real-time push</td></tr>
+<tr><td>Transaction Engine</td><td>C++20</td><td>Lock-free queues, work-stealing thread pool, SHA-256 hash chain audit</td></tr>
+<tr><td>Database</td><td>SQLite / PostgreSQL</td><td>Dev with SQLite, production with PostgreSQL</td></tr>
+<tr><td>Cache</td><td>Redis</td><td>Session cache, rate limiting</td></tr>
+<tr><td>Frontend</td><td>Vanilla JS + ECharts</td><td>Apple Music-style dark theme SPA</td></tr>
+<tr><td>Containerization</td><td>Docker + Docker Compose</td><td>One-click deployment</td></tr>
+</table>
+
+<h2>3. Core Modules</h2>
+
+<h3>3.1 Go API Gateway</h3>
+<ul>
+<li>Gin framework with JWT authentication and RBAC (admin/merchant/operator)</li>
+<li>REST API for transaction CRUD, account management, merchant management, audit logs, and exchange rates</li>
+<li>WebSocket hub for real-time push: transaction updates, engine health, dashboard stats</li>
+<li>Built-in transaction engine with automatic fallback when C++ engine is unavailable</li>
+<li>Token bucket rate limiter (configurable per-IP rate)</li>
+<li>Middleware: CORS, audit logging, rate limiting</li>
+<li>JSON-over-TCP protocol client for C++ engine communication (4-byte length prefix + JSON payload)</li>
+</ul>
+
+<h3>3.2 C++20 Transaction Engine</h3>
+<ul>
+<li>Lock-free SPSC RingBuffer with cache-line padding to prevent false sharing</li>
+<li>Lock-free MPMC Queue using Vyukov turn-based sequence locking (ABA-free)</li>
+<li>Work-stealing thread pool with 3 priority levels (high/normal/low) and jthread workers</li>
+<li>TCP server with epoll-based accept loop, length-prefixed JSON protocol</li>
+<li>Transaction processing pipeline: validation -> exchange rate conversion -> settlement -> hash chain</li>
+<li>SHA-256 hash chain audit: each transaction linked to previous via cryptographic hash, checkpointed every 1000 transactions</li>
+<li>AES-256-GCM encryption for sensitive data (OpenSSL EVP)</li>
+<li>In-memory account store and transaction journal with thread-safe access</li>
+</ul>
+
+<h3>3.3 Web Dashboard (Apple Music Style)</h3>
+<ul>
+<li>Dark theme with CSS custom properties: glassmorphism header, gradient stat cards, 24px border radius</li>
+<li>7 pages: Login, Dashboard, Transactions, Accounts, Merchants, Audit, Settings</li>
+<li>ECharts real-time charts: TPS line chart (60s sliding window), volume bar chart (24h)</li>
+<li>WebSocket live updates: transaction status changes, engine health, dashboard stats</li>
+<li>Reusable components: toast notifications, modal dialogs, sortable data tables, stat cards</li>
+<li>Responsive design with mobile breakpoints</li>
+</ul>
+
+<h2>4. Data Flow</h2>
+<pre><code>HTTP Request -> Gin Router -> Auth Middleware -> Transaction Handler
+                                                      |
+                                    +------------------+------------------+
+                                    |                                     |
+                              C++ Engine (TCP)                   Internal Go Engine
+                              Lock-free Queue ->                  Balance Check ->
+                              ThreadPool -> Validate ->           Exchange Rate ->
+                              Convert -> Hash Chain ->            Settlement ->
+                              Response                            Hash Chain -> DB
+                                    |                                     |
+                                    +------------------+------------------+
+                                                       |
+                                              Database Write + WebSocket Broadcast
+</code></pre>
+
+<h2>5. Hash Chain Audit Integrity</h2>
+<p>Every transaction is cryptographically linked to the previous one:</p>
+<pre><code>Hash_n = SHA256(Hash_{n-1} | TransactionID | SourceAmount | TargetCurrency | TargetAmount | Timestamp)
+</code></pre>
+<ul>
+<li>Genesis hash: 64 zeros</li>
+<li>Checkpoint every 1000 transactions to database</li>
+<li>Any tampering with historical transactions breaks the chain</li>
+<li>Independent auditors can recompute and verify the entire chain</li>
+</ul>
+
+<h2>6. Performance Characteristics</h2>
+<ul>
+<li><strong>Throughput:</strong> 550+ TPS on SQLite (single instance), scalable with PostgreSQL and engine pooling</li>
+<li><strong>Latency:</strong> P50 ~10ms, P99 ~35ms (local, SQLite backend)</li>
+<li><strong>Engine Fallback:</strong> Automatic internal Go processing when C++ engine unavailable</li>
+<li><strong>Concurrency:</strong> 50+ concurrent workers sustained with rate limiting</li>
+</ul>
+
+<h2>7. Deployment</h2>
+<pre><code># Development
+cd gateway && go run . configs/config.yaml
+# Dashboard: http://localhost:8080 (admin / admin123)
+
+# Docker
+docker-compose -f deploy/docker-compose.yml up -d
+
+# Benchmark
+cd client && ./client --mode=payment --concurrency=20 --rate=500 --duration=30s
+</code></pre>
+
+<h2>8. Key Design Decisions</h2>
+<ul>
+<li>JSON-over-TCP protocol between Go and C++ for simplicity and debuggability</li>
+<li>Reverse exchange rate lookup: if USD->CNY exists, CNY->USD is computed as 1/rate</li>
+<li>Bcrypt password hashing generated at runtime (not hardcoded) for cross-version compatibility</li>
+<li>Dashboard served from filesystem in dev, embeddable in production binary</li>
+<li>SQLite for zero-config development, PostgreSQL interface ready for production</li>
 </ul>
 `

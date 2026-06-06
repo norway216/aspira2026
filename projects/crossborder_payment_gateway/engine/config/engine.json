@@ -1,0 +1,9 @@
+{
+    "listen_addr": "0.0.0.0",
+    "listen_port": 9100,
+    "worker_threads": 8,
+    "max_connections": 1000,
+    "session_timeout_sec": 30,
+    "checkpoint_interval": 1000,
+    "verbose": false
+}
