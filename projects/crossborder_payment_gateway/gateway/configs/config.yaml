@@ -22,3 +22,8 @@ redis:
   addr: localhost:6379
   password: ""
   db: 0
+
+exchange:
+  api_url: "https://open.er-api.com/v6/latest/USD"
+  refresh_interval: 1h
+  enabled: true

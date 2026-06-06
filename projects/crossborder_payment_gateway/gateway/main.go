@@ -16,6 +16,7 @@ import (
 	"github.com/aspira/crossborder-payment-gateway/internal/auth"
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
 	"github.com/aspira/crossborder-payment-gateway/internal/engine"
+	"github.com/aspira/crossborder-payment-gateway/internal/exchange"
 	"github.com/aspira/crossborder-payment-gateway/internal/handler"
 	"github.com/aspira/crossborder-payment-gateway/internal/middleware"
 	"github.com/aspira/crossborder-payment-gateway/internal/websocket"
@@ -75,14 +76,18 @@ func main() {
 	go wsHub.Run()
 	log.Println("WebSocket hub started")
 
+	// Initialize live exchange rate service
+	rateService := exchange.NewRateService(cfg.Exchange.APIURL, cfg.Exchange.RefreshInterval, cfg.Exchange.Enabled)
+	rateService.StartAutoRefresh(cfg.Exchange.RefreshInterval)
+
 	// Initialize handlers
 	authH := handler.NewAuthHandler(db, jwtMgr)
-	txnH := handler.NewTransactionHandler(db, engineClient, wsHub)
+	txnH := handler.NewTransactionHandler(db, engineClient, wsHub, rateService)
 	acctH := handler.NewAccountHandler(db)
 	merchantH := handler.NewMerchantHandler(db)
 	dashboardH := handler.NewDashboardHandler(db, engineClient)
 	auditH := handler.NewAuditHandler(db)
-	exchangeH := handler.NewExchangeHandler(db)
+	exchangeH := handler.NewExchangeHandler(db, rateService)
 
 	// Setup Gin
 	if cfg.Server.Mode == "release" {
@@ -144,6 +149,8 @@ func main() {
 
 			// Exchange rates
 			protected.GET("/exchange-rates", exchangeH.ListRates)
+			protected.GET("/exchange-rates/live", exchangeH.GetLiveRates)
+			protected.POST("/exchange-rates/refresh", middleware.AdminRequired(), exchangeH.RefreshRates)
 			protected.POST("/exchange-rates", middleware.AdminRequired(), exchangeH.UpsertRate)
 		}
 	}

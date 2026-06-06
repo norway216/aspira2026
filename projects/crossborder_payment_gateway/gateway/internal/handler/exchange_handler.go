@@ -5,16 +5,18 @@ import (
 	"time"
 
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
+	"github.com/aspira/crossborder-payment-gateway/internal/exchange"
 	"github.com/aspira/crossborder-payment-gateway/internal/models"
 	"github.com/gin-gonic/gin"
 )
 
 type ExchangeHandler struct {
-	db database.DB
+	db          database.DB
+	rateService *exchange.RateService
 }
 
-func NewExchangeHandler(db database.DB) *ExchangeHandler {
-	return &ExchangeHandler{db: db}
+func NewExchangeHandler(db database.DB, rateService *exchange.RateService) *ExchangeHandler {
+	return &ExchangeHandler{db: db, rateService: rateService}
 }
 
 func (h *ExchangeHandler) ListRates(c *gin.Context) {
@@ -59,4 +61,30 @@ func (h *ExchangeHandler) UpsertRate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"rate": rate})
+}
+
+// GetLiveRates returns the cached live exchange rates.
+func (h *ExchangeHandler) GetLiveRates(c *gin.Context) {
+	rates := h.rateService.GetCachedRates()
+	cacheAge := h.rateService.GetCacheAge()
+	c.JSON(http.StatusOK, gin.H{
+		"rates":      rates,
+		"base":       "USD",
+		"count":      len(rates),
+		"cache_age":  cacheAge.String(),
+		"cached_at":  time.Now().Add(-cacheAge).Format(time.RFC3339),
+	})
+}
+
+// RefreshRates forces a refresh of live exchange rates from the API.
+func (h *ExchangeHandler) RefreshRates(c *gin.Context) {
+	rates, err := h.rateService.FetchRates()
+	if err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "rates refreshed",
+		"count":   len(rates),
+	})
 }

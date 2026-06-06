@@ -1,5 +1,8 @@
-2026/06/06 20:55:46 Database initialized
-2026/06/06 20:55:46 WebSocket hub started
+2026/06/06 21:55:40 Database initialized
+2026/06/06 21:55:40 WebSocket hub started
+2026/06/06 21:55:42 [Exchange] Fetched 166 live rates from API (base: USD)
+2026/06/06 21:55:42 [Exchange] Initial rates loaded successfully
+2026/06/06 21:55:42 [Exchange] Auto-refresh started (interval: 1h0m0s)
 [GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
 
 [GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
@@ -29,18 +32,25 @@
 [GIN-debug] DELETE /api/v1/merchants/:id     --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*MerchantHandler).DeleteMerchant-fm (8 handlers)
 [GIN-debug] GET    /api/v1/audit             --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*AuditHandler).ListAuditLogs-fm (7 handlers)
 [GIN-debug] GET    /api/v1/exchange-rates    --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*ExchangeHandler).ListRates-fm (7 handlers)
+[GIN-debug] GET    /api/v1/exchange-rates/live --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*ExchangeHandler).GetLiveRates-fm (7 handlers)
+[GIN-debug] POST   /api/v1/exchange-rates/refresh --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*ExchangeHandler).RefreshRates-fm (8 handlers)
 [GIN-debug] POST   /api/v1/exchange-rates    --> github.com/aspira/crossborder-payment-gateway/internal/handler.(*ExchangeHandler).UpsertRate-fm (8 handlers)
 [GIN-debug] GET    /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (6 handlers)
 [GIN-debug] HEAD   /static/*filepath         --> github.com/gin-gonic/gin.(*RouterGroup).createStaticHandler.func1 (6 handlers)
-2026/06/06 20:55:46 ═══════════════════════════════════════════════════════
-2026/06/06 20:55:46   Aspira Cross-Border Payment Gateway
-2026/06/06 20:55:46   Dashboard: http://localhost:8080
-2026/06/06 20:55:46   API Base:  http://localhost:8080/api/v1
-2026/06/06 20:55:46   WebSocket: ws://localhost:8080/ws
-2026/06/06 20:55:46 ═══════════════════════════════════════════════════════
-[GIN] 2026/06/06 - 20:55:51 | 200 |   11.602242ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 20:55:56 | 200 |   14.225157ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 20:56:01 | 200 |   10.376822ms |       127.0.0.1 | GET      "/api/v1/dashboard"
-[GIN] 2026/06/06 - 20:56:02 | 200 |     151.582µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
-[GIN] 2026/06/06 - 20:56:51 | 200 |   84.937197ms |             ::1 | POST     "/api/v1/auth/login"
-[GIN] 2026/06/06 - 20:56:51 | 200 |    10.53408ms |             ::1 | GET      "/api/v1/dashboard"
+2026/06/06 21:55:42 ═══════════════════════════════════════════════════════
+2026/06/06 21:55:42   Aspira Cross-Border Payment Gateway
+2026/06/06 21:55:42   Dashboard: http://localhost:8080
+2026/06/06 21:55:42   API Base:  http://localhost:8080/api/v1
+2026/06/06 21:55:42   WebSocket: ws://localhost:8080/ws
+2026/06/06 21:55:42 ═══════════════════════════════════════════════════════
+[GIN] 2026/06/06 - 21:55:42 | 200 |     102.036µs |       127.0.0.1 | GET      "/ws?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNyLWFkbWluLTAwMSIsInVzZXJuYW1lIjoiYWRtaW4iLCJyb2xlIjoiYWRtaW4iLCJzdWIiOiJ1c3ItYWRtaW4tMDAxIiwiZXhwIjoxNzgwODAxODI1LCJpYXQiOjE3ODA3MTU0MjV9.mJtsN0kW3ic9UUGPbc7-hYIQBBOU_-8rG8AoxN6CNTk"
+[GIN] 2026/06/06 - 21:55:50 | 200 |    49.39622ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/06/06 - 21:56:01 | 200 |   80.158843ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/06/06 - 21:56:01 | 200 |     268.295µs |             ::1 | GET      "/api/v1/exchange-rates/live"
+[GIN] 2026/06/06 - 21:56:01 | 200 |     779.751µs |             ::1 | POST     "/api/v1/transactions"
+[GIN] 2026/06/06 - 21:56:13 | 200 |  102.740684ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/06/06 - 21:56:13 | 200 |      390.19µs |             ::1 | GET      "/api/v1/dashboard"
+[GIN] 2026/06/06 - 21:56:13 | 200 |      357.31µs |             ::1 | GET      "/api/v1/dashboard/volume-history"
+[GIN] 2026/06/06 - 21:56:30 | 200 |   62.885742ms |             ::1 | POST     "/api/v1/auth/login"
+[GIN] 2026/06/06 - 21:56:30 | 200 |     705.734µs |             ::1 | POST     "/api/v1/transactions"
+[GIN] 2026/06/06 - 21:56:30 | 200 |     706.895µs |             ::1 | POST     "/api/v1/transactions"

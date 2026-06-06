@@ -32,6 +32,19 @@ function renderTransactionDetail(txn) {
     html += '<div class="card">';
 
     // Amount section
+    // USD amount (prominent)
+    if (txn.usd_amount) {
+        html += '<div class="detail-amount-row" style="background:rgba(0,122,255,0.05);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+            '<div class="detail-label" style="color:var(--color-accent);">USD 金额 (中间兑换)</div>' +
+            '<div class="detail-amount">' +
+            '<div class="detail-amount-main" style="color:var(--color-accent);font-size:28px;">' + formatCurrency(txn.usd_amount, 'USD') + '</div>' +
+            '<div class="detail-amount-sub">' +
+                (txn.source_currency || '') + ' → USD @ ' + (txn.source_to_usd_rate ? parseFloat(txn.source_to_usd_rate).toFixed(4) : '-') +
+                ' | USD → ' + (txn.target_currency || '') + ' @ ' + (txn.usd_to_target_rate ? parseFloat(txn.usd_to_target_rate).toFixed(4) : '-') +
+            '</div>' +
+            '</div></div>';
+    }
+
     html += '<div class="detail-amount-row">' +
         '<div class="detail-label">交易金额</div>' +
         '<div class="detail-amount">' +

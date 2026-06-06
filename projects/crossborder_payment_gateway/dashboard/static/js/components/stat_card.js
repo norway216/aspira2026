@@ -38,6 +38,13 @@ const StatCard = {
                                 return '¥' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             };
                             break;
+                        case 'usd':
+                            formatter = function (v) {
+                                if (v >= 1000000) return '$' + (v / 1000000).toFixed(2) + 'M';
+                                if (v >= 1000) return '$' + (v / 1000).toFixed(1) + 'K';
+                                return '$' + v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            };
+                            break;
                         case 'percent':
                             formatter = function (v) { return v.toFixed(1) + '%'; };
                             break;
@@ -119,6 +126,13 @@ function formatStatValue(value, format) {
                 return '¥' + (num / 10000).toFixed(1) + '万';
             }
             return '¥' + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        case 'usd':
+            if (num >= 1000000) {
+                return '$' + (num / 1000000).toFixed(2) + 'M';
+            } else if (num >= 1000) {
+                return '$' + (num / 1000).toFixed(1) + 'K';
+            }
+            return '$' + num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         case 'percent':
             return num.toFixed(1) + '%';
         case 'tps':
