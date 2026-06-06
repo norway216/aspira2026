@@ -1,0 +1,7 @@
+
+# Local database files
+*.db
+*.sqlite
+*.sqlite3
+projects/crossborder_payment_gateway/gateway/data/*.db
+!projects/crossborder_payment_gateway/gateway/data/.gitkeep
