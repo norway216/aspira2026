@@ -1968,6 +1968,10 @@ code {
 .currency-icon.currency-eur { background: linear-gradient(135deg, #007AFF, #5856D6); }
 .currency-icon.currency-jpy { background: linear-gradient(135deg, #FF9F0A, #FF6B00); }
 .currency-icon.currency-gbp { background: linear-gradient(135deg, #AF52DE, #5856D6); }
+.currency-icon.currency-chf { background: linear-gradient(135deg, #FF375F, #E81E3A); }
+.currency-icon.currency-cad { background: linear-gradient(135deg, #FF375F, #FF2D55); }
+.currency-icon.currency-aud { background: linear-gradient(135deg, #007AFF, #30D158); }
+.currency-icon.currency-nzd { background: linear-gradient(135deg, #30D158, #007AFF); }
 .currency-icon.currency-hkd { background: linear-gradient(135deg, #FF375F, #FF2D55); }
 .currency-icon.currency-sgd { background: linear-gradient(135deg, #5AC8FA, #007AFF); }
 

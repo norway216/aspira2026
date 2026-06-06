@@ -23,11 +23,30 @@ func NewSQLite(dsn string) (*SQLiteDB, error) {
 		return nil, fmt.Errorf("failed to open sqlite: %w", err)
 	}
 
-	db.SetMaxOpenConns(1) // SQLite single-writer mode
-	db.SetMaxIdleConns(1)
+	// Enable WAL mode for concurrent reads + writes (massive TPS improvement)
+	// WAL allows multiple readers and one writer to coexist without blocking each other
+	db.SetMaxOpenConns(4)
+	db.SetMaxIdleConns(2)
 	db.SetConnMaxLifetime(time.Hour)
 
 	sqliteDB := &SQLiteDB{db: db}
+
+	// Apply performance pragmas
+	pragmas := []string{
+		"PRAGMA journal_mode=WAL",
+		"PRAGMA busy_timeout=5000",
+		"PRAGMA synchronous=NORMAL",
+		"PRAGMA cache_size=-65536",   // 64MB cache
+		"PRAGMA foreign_keys=ON",
+		"PRAGMA temp_store=MEMORY",
+		"PRAGMA mmap_size=268435456", // 256MB memory map
+	}
+	for _, p := range pragmas {
+		if _, err := db.Exec(p); err != nil {
+			return nil, fmt.Errorf("pragma error (%s): %w", p, err)
+		}
+	}
+
 	if err := sqliteDB.RunMigrations(); err != nil {
 		return nil, fmt.Errorf("migrations failed: %w", err)
 	}
@@ -175,15 +194,32 @@ func (s *SQLiteDB) seed() error {
 		}
 	}
 
-	// Seed accounts (USD and CNY for each merchant)
+	// Seed accounts (multi-currency accounts for each merchant)
 	accounts := []struct {
 		id, merchantID, currency string
 		balance                  int64
 	}{
-		{"acct-001", "merchant-001", "USD", 100000000}, // 1M USD
+		// Merchant 1
+		{"acct-001", "merchant-001", "USD", 100000000},   // 1M USD
 		{"acct-002", "merchant-001", "CNY", 10000000000}, // 100M CNY
-		{"acct-003", "merchant-002", "USD", 50000000},  // 500K USD
-		{"acct-004", "merchant-002", "CNY", 5000000000}, // 50M CNY
+		{"acct-005", "merchant-001", "EUR", 50000000},    // 500K EUR
+		{"acct-006", "merchant-001", "JPY", 10000000000}, // 100M JPY
+		{"acct-007", "merchant-001", "GBP", 30000000},    // 300K GBP
+		{"acct-008", "merchant-001", "CHF", 20000000},    // 200K CHF
+		{"acct-009", "merchant-001", "CAD", 40000000},    // 400K CAD
+		{"acct-010", "merchant-001", "AUD", 40000000},    // 400K AUD
+		{"acct-011", "merchant-001", "NZD", 30000000},    // 300K NZD
+		{"acct-012", "merchant-001", "SGD", 30000000},    // 300K SGD
+		{"acct-013", "merchant-001", "HKD", 50000000},    // 500K HKD
+		// Merchant 2
+		{"acct-003", "merchant-002", "USD", 50000000},    // 500K USD
+		{"acct-004", "merchant-002", "CNY", 5000000000},  // 50M CNY
+		{"acct-014", "merchant-002", "EUR", 30000000},    // 300K EUR
+		{"acct-015", "merchant-002", "JPY", 5000000000},  // 50M JPY
+		{"acct-016", "merchant-002", "GBP", 20000000},    // 200K GBP
+		{"acct-017", "merchant-002", "CHF", 15000000},    // 150K CHF
+		{"acct-018", "merchant-002", "AUD", 30000000},    // 300K AUD
+		{"acct-019", "merchant-002", "SGD", 25000000},    // 250K SGD
 	}
 	for _, a := range accounts {
 		if _, err := s.db.Exec(
@@ -204,7 +240,47 @@ func (s *SQLiteDB) seed() error {
 		{"USD", "EUR", 0.9215, 0.9200, 0.9230, "ECB"},
 		{"USD", "JPY", 155.75, 155.50, 156.00, "BOJ"},
 		{"USD", "GBP", 0.7910, 0.7895, 0.7925, "BOE"},
+		{"USD", "CHF", 0.8985, 0.8970, 0.9000, "SNB"},
+		{"USD", "CAD", 1.3670, 1.3650, 1.3690, "BOC"},
+		{"USD", "AUD", 1.5210, 1.5190, 1.5230, "RBA"},
+		{"USD", "NZD", 1.6390, 1.6370, 1.6410, "RBNZ"},
+		{"USD", "SGD", 1.3485, 1.3470, 1.3500, "MAS"},
+		{"USD", "HKD", 7.8120, 7.8100, 7.8140, "HKMA"},
 		{"EUR", "CNY", 7.8740, 7.8680, 7.8800, "CFETS"},
+		{"EUR", "CHF", 0.9750, 0.9730, 0.9770, "SNB"},
+		{"EUR", "JPY", 169.05, 168.80, 169.30, "BOJ"},
+		{"EUR", "GBP", 0.8585, 0.8570, 0.8600, "BOE"},
+		{"CNY", "JPY", 21.470, 21.420, 21.520, "CFETS"},
+		{"CNY", "EUR", 0.1271, 0.1268, 0.1274, "CFETS"},
+		{"AUD", "NZD", 1.0775, 1.0760, 1.0790, "RBA"},
+		{"SGD", "HKD", 5.7950, 5.7900, 5.8000, "MAS"},
+		// Reverse rates (1/rate) for common pairs
+		{"CNY", "USD", 0.1379, 0.1377, 0.1380, "CFETS"},
+		{"EUR", "USD", 1.0852, 1.0834, 1.0870, "ECB"},
+		{"JPY", "USD", 0.006420, 0.006410, 0.006430, "BOJ"},
+		{"GBP", "USD", 1.2642, 1.2616, 1.2668, "BOE"},
+		{"CHF", "USD", 1.1130, 1.1111, 1.1149, "SNB"},
+		{"CAD", "USD", 0.7315, 0.7305, 0.7326, "BOC"},
+		{"AUD", "USD", 0.6575, 0.6566, 0.6584, "RBA"},
+		{"NZD", "USD", 0.6101, 0.6094, 0.6109, "RBNZ"},
+		{"SGD", "USD", 0.7416, 0.7407, 0.7425, "MAS"},
+		{"HKD", "USD", 0.1280, 0.1279, 0.1281, "HKMA"},
+		// Cross-rates via CNY
+		{"CNY", "HKD", 1.0771, 1.0760, 1.0782, "CFETS"},
+		{"CNY", "SGD", 0.1859, 0.1855, 0.1863, "CFETS"},
+		{"CNY", "AUD", 0.2097, 0.2093, 0.2101, "CFETS"},
+		{"CNY", "GBP", 0.1091, 0.1089, 0.1093, "CFETS"},
+		{"JPY", "CNY", 0.04658, 0.04645, 0.04671, "CFETS"},
+		{"GBP", "CNY", 9.1701, 9.1580, 9.1822, "CFETS"},
+		{"AUD", "CNY", 4.7693, 4.7610, 4.7776, "CFETS"},
+		{"SGD", "CNY", 5.3789, 5.3700, 5.3878, "CFETS"},
+		// Cross-rates via EUR
+		{"EUR", "AUD", 1.6506, 1.6470, 1.6542, "ECB"},
+		{"EUR", "CAD", 1.4835, 1.4800, 1.4870, "ECB"},
+		{"EUR", "NZD", 1.7785, 1.7750, 1.7820, "ECB"},
+		// Cross-rates between Asian currencies
+		{"JPY", "SGD", 0.008660, 0.008640, 0.008680, "MAS"},
+		{"JPY", "HKD", 0.05015, 0.05000, 0.05030, "HKMA"},
 	}
 	for _, r := range rates {
 		if _, err := s.db.Exec(
@@ -215,24 +291,37 @@ func (s *SQLiteDB) seed() error {
 		}
 	}
 
-	// Seed sample transactions
-	statuses := []models.TransactionStatus{
-		models.TxnCompleted, models.TxnCompleted, models.TxnCompleted,
-		models.TxnCompleted, models.TxnFailed, models.TxnCompleted,
-		models.TxnRefunded, models.TxnCompleted, models.TxnPending,
-		models.TxnCompleted,
+	// Seed sample transactions (multi-currency demo)
+	type sampleTxn struct {
+		status                        models.TransactionStatus
+		payerAcct, payeeAcct          string
+		srcCurrency, tgtCurrency      string
+		srcAmt                        int64
+		rate                          float64
+		fee                           int64
+		desc                          string
+		hoursAgo                      int
 	}
-	prevHash := "0000000000000000000000000000000000000000000000000000000000000000" // genesis hash
+	samples := []sampleTxn{
+		{models.TxnCompleted, "acct-002", "acct-001", "CNY", "USD", 50000, 7.2530, 150, "跨境电商货款", 20},
+		{models.TxnCompleted, "acct-005", "acct-002", "EUR", "CNY", 12000, 7.8740, 85, "进口商品结算", 18},
+		{models.TxnCompleted, "acct-006", "acct-001", "JPY", "USD", 250000, 0.00642, 320, "软件服务费", 16},
+		{models.TxnCompleted, "acct-001", "acct-008", "USD", "CHF", 8000, 0.8985, 60, "瑞士银行转账", 14},
+		{models.TxnFailed, "acct-009", "acct-003", "CAD", "USD", 15000, 0.7315, 110, "跨境贸易结算", 12},
+		{models.TxnCompleted, "acct-007", "acct-005", "GBP", "EUR", 9500, 1.1635, 75, "英国电商收款", 10},
+		{models.TxnRefunded, "acct-010", "acct-018", "AUD", "AUD", 20000, 1.0000, 40, "退款-商户争议", 8},
+		{models.TxnCompleted, "acct-003", "acct-012", "USD", "SGD", 18000, 1.3485, 130, "新加坡汇款", 6},
+		{models.TxnPending, "acct-013", "acct-002", "HKD", "CNY", 50000, 0.9285, 95, "香港贸易结算", 4},
+		{models.TxnCompleted, "acct-011", "acct-010", "NZD", "AUD", 12000, 0.9280, 70, "跨塔斯曼汇款", 2},
+	}
+	prevHash := "0000000000000000000000000000000000000000000000000000000000000000"
 
-	for i, status := range statuses {
+	for i, tx := range samples {
 		txnID := fmt.Sprintf("txn-sample-%03d", i+1)
-		srcAmt := int64(10000 + i*5000)
-		rate := 7.25
-		fee := int64(150 + i*10)
-		tgtAmt := int64(float64(srcAmt-fee) * rate)
-		ts := time.Now().Add(-time.Duration(len(statuses)-i) * 2 * time.Hour)
+		tgtAmt := int64(float64(tx.srcAmt-tx.fee) * tx.rate)
+		ts := time.Now().Add(-time.Duration(tx.hoursAgo) * time.Hour)
 
-		hashInput := fmt.Sprintf("%s|%s|%d|CNY|%d|%d", prevHash, txnID, srcAmt, tgtAmt, ts.UnixNano())
+		hashInput := fmt.Sprintf("%s|%s|%d|%s|%d|%d", prevHash, txnID, tx.srcAmt, tx.tgtCurrency, tgtAmt, ts.UnixNano())
 		hash := sha256.Sum256([]byte(hashInput))
 		currHash := hex.EncodeToString(hash[:])
 		prevHashCopy := prevHash
@@ -242,9 +331,9 @@ func (s *SQLiteDB) seed() error {
 			 source_currency, target_currency, source_amount, target_amount, exchange_rate, fee,
 			 status, description, reference_id, hash_chain_prev, hash_chain_curr,
 			 created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-			txnID, "merchant-001", "acct-002", "acct-001",
-			"CNY", "USD", srcAmt, tgtAmt, rate, fee,
-			string(status), "跨境支付测试", fmt.Sprintf("REF-%03d", i+1),
+			txnID, "merchant-001", tx.payerAcct, tx.payeeAcct,
+			tx.srcCurrency, tx.tgtCurrency, tx.srcAmt, tgtAmt, tx.rate, tx.fee,
+			string(tx.status), tx.desc, fmt.Sprintf("REF-%03d", i+1),
 			prevHashCopy, currHash,
 			ts, ts,
 		); err != nil {
@@ -380,6 +469,17 @@ func (s *SQLiteDB) UpdateTransactionStatus(id string, status models.TransactionS
 func (s *SQLiteDB) GetTransactionsByStatus(status models.TransactionStatus) ([]models.Transaction, error) {
 	txns, _, err := s.ListTransactions(TransactionQuery{Status: string(status), Page: 1, PageSize: 1000})
 	return txns, err
+}
+
+func (s *SQLiteDB) GetLastTransactionHash() string {
+	var hash string
+	err := s.db.QueryRow(
+		"SELECT hash_chain_curr FROM transactions ORDER BY created_at DESC LIMIT 1",
+	).Scan(&hash)
+	if err != nil {
+		return "0000000000000000000000000000000000000000000000000000000000000000"
+	}
+	return hash
 }
 
 func (s *SQLiteDB) CreateAccount(acct *models.Account) error {
@@ -664,18 +764,48 @@ func (s *SQLiteDB) UpsertExchangeRate(rate *models.ExchangeRate) error {
 func (s *SQLiteDB) GetDashboardStats() (*models.DashboardStats, error) {
 	stats := &models.DashboardStats{}
 
+	// Compute time boundaries in Go to avoid SQLite timezone issues.
+	// SQLite datetime('now') returns UTC, but created_at stores local time,
+	// and Go's time.Now() format is not parsable by SQLite's date() function.
+	now := time.Now()
+	oneSecAgo := now.Add(-1 * time.Second).Format("2006-01-02 15:04:05")
+	fiveSecAgo := now.Add(-5 * time.Second).Format("2006-01-02 15:04:05")
+	oneDayAgo := now.Add(-24 * time.Hour).Format("2006-01-02 15:04:05")
+	todayStart := now.Format("2006-01-02") + " 00:00:00"
+	tomorrowStart := now.Add(24 * time.Hour).Format("2006-01-02") + " 00:00:00"
+
+	// Compute TPS: count transactions in the last 1 second
+	var tpsCount int64
+	s.db.QueryRow(
+		"SELECT COUNT(*) FROM transactions WHERE created_at >= ?",
+		oneSecAgo,
+	).Scan(&tpsCount)
+	stats.CurrentTPS = float64(tpsCount)
+
+	// Also compute average TPS over last 5 seconds for smoother display
+	var tps5s int64
+	s.db.QueryRow(
+		"SELECT COUNT(*) FROM transactions WHERE created_at >= ?",
+		fiveSecAgo,
+	).Scan(&tps5s)
+	avgTPS5s := float64(tps5s) / 5.0
+	if avgTPS5s > stats.CurrentTPS {
+		stats.CurrentTPS = avgTPS5s
+	}
+
 	// Total transactions
 	s.db.QueryRow("SELECT COUNT(*) FROM transactions").Scan(&stats.TotalTransactions)
 
-	// Today's stats
-	today := time.Now().Format("2006-01-02")
-	s.db.QueryRow("SELECT COUNT(*), COALESCE(SUM(target_amount), 0) FROM transactions WHERE date(created_at) = ?",
-		today).Scan(&stats.TodayCount, &stats.TodayVolume)
+	// Today's stats — use string prefix matching against created_at
+	s.db.QueryRow(
+		"SELECT COUNT(*), COALESCE(SUM(target_amount), 0) FROM transactions WHERE created_at >= ? AND created_at < ?",
+		todayStart, tomorrowStart,
+	).Scan(&stats.TodayCount, &stats.TodayVolume)
 
 	// Success rate (last 24 hours)
 	var total24h, success24h int64
-	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= datetime('now', '-1 day')").Scan(&total24h)
-	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= datetime('now', '-1 day') AND status = 'completed'").Scan(&success24h)
+	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= ?", oneDayAgo).Scan(&total24h)
+	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= ? AND status = 'completed'", oneDayAgo).Scan(&success24h)
 	if total24h > 0 {
 		stats.SuccessRate = float64(success24h) / float64(total24h) * 100
 	}
@@ -699,14 +829,18 @@ func (s *SQLiteDB) GetTPSHistory(seconds int) ([]models.TPSDataPoint, error) {
 		seconds = 60
 	}
 
-	// Group transactions by second for the last N seconds
+	// Compute time boundary in Go to avoid SQLite datetime() timezone issues.
+	// created_at stores local time strings; we compare against a local time prefix.
+	since := time.Now().Add(-time.Duration(seconds) * time.Second).Format("2006-01-02 15:04:05")
+
+	// Group by the second-precision prefix of created_at (first 19 chars = "YYYY-MM-DD HH:MM:SS")
 	rows, err := s.db.Query(
-		`SELECT strftime('%s', created_at) as ts, COUNT(*) as cnt
+		`SELECT SUBSTR(created_at, 1, 19) as ts, COUNT(*) as cnt
 		 FROM transactions
-		 WHERE created_at >= datetime('now', '-' || ? || ' seconds')
-		 GROUP BY strftime('%s', created_at)
+		 WHERE created_at >= ?
+		 GROUP BY ts
 		 ORDER BY ts ASC`,
-		fmt.Sprintf("%d", seconds),
+		since,
 	)
 	if err != nil {
 		return nil, err
@@ -715,9 +849,59 @@ func (s *SQLiteDB) GetTPSHistory(seconds int) ([]models.TPSDataPoint, error) {
 
 	points := make([]models.TPSDataPoint, 0, seconds)
 	for rows.Next() {
-		var dp models.TPSDataPoint
-		if err := rows.Scan(&dp.Timestamp, &dp.TPS); err != nil {
+		var tsStr string
+		var cnt int64
+		if err := rows.Scan(&tsStr, &cnt); err != nil {
 			continue
+		}
+		// Parse as local time, then convert to unix timestamp for the API
+		t, err := time.ParseInLocation("2006-01-02 15:04:05", tsStr, time.Local)
+		if err != nil {
+			continue
+		}
+		points = append(points, models.TPSDataPoint{
+			Timestamp: t.Unix(),
+			TPS:       float64(cnt),
+		})
+	}
+
+	return points, nil
+}
+
+func (s *SQLiteDB) GetVolumeHistory(hours int) ([]models.VolumeDataPoint, error) {
+	if hours <= 0 {
+		hours = 24
+	}
+
+	// Compute time boundary in Go to avoid SQLite datetime() timezone issues
+	since := time.Now().Add(-time.Duration(hours) * time.Hour).Format("2006-01-02 15:04:05")
+
+	// Group by hour — extract "YYYY-MM-DD HH:00" prefix
+	rows, err := s.db.Query(
+		`SELECT SUBSTR(created_at, 1, 13) || ':00' as hour_label,
+		        COALESCE(SUM(target_amount), 0) as vol,
+		        COUNT(*) as cnt
+		 FROM transactions
+		 WHERE created_at >= ?
+		 GROUP BY hour_label
+		 ORDER BY hour_label ASC`,
+		since,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	points := make([]models.VolumeDataPoint, 0, hours)
+	for rows.Next() {
+		var dp models.VolumeDataPoint
+		if err := rows.Scan(&dp.Label, &dp.Volume, &dp.Count); err != nil {
+			continue
+		}
+		// Parse label to get unix timestamp
+		t, err := time.ParseInLocation("2006-01-02 15:04:05", dp.Label, time.Local)
+		if err == nil {
+			dp.Timestamp = t.Unix()
 		}
 		points = append(points, dp)
 	}

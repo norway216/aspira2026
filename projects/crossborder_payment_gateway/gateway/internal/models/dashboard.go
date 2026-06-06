@@ -15,3 +15,10 @@ type TPSDataPoint struct {
 	Timestamp int64   `json:"timestamp"`
 	TPS       float64 `json:"tps"`
 }
+
+type VolumeDataPoint struct {
+	Timestamp int64   `json:"timestamp"`
+	Label     string  `json:"label"`
+	Volume    int64   `json:"volume"`
+	Count     int64   `json:"count"`
+}
