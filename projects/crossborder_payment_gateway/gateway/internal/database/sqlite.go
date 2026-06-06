@@ -179,6 +179,58 @@ func (s *SQLiteDB) RunMigrations() error {
 			resolved_at DATETIME,
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 		)`,
+		// Blockchain tables (Aspira Consortium Chain)
+		`CREATE TABLE IF NOT EXISTS chain_blocks (
+			height INTEGER PRIMARY KEY,
+			hash TEXT UNIQUE NOT NULL,
+			prev_hash TEXT NOT NULL,
+			merkle_root TEXT NOT NULL,
+			state_root TEXT DEFAULT '',
+			timestamp INTEGER NOT NULL,
+			nonce INTEGER DEFAULT 0,
+			signer TEXT DEFAULT 'aspira-core-node',
+			tx_count INTEGER DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS chain_tx_refs (
+			block_height INTEGER NOT NULL,
+			tx_id TEXT NOT NULL,
+			tx_hash TEXT NOT NULL,
+			tx_type TEXT NOT NULL,
+			order_id TEXT DEFAULT '',
+			FOREIGN KEY (block_height) REFERENCES chain_blocks(height)
+		)`,
+		`CREATE TABLE IF NOT EXISTS chain_orders (
+			order_id TEXT PRIMARY KEY,
+			order_hash TEXT NOT NULL,
+			merchant_hash TEXT NOT NULL,
+			customer_hash TEXT DEFAULT '',
+			amount_commitment TEXT NOT NULL,
+			quote_id TEXT DEFAULT '',
+			status TEXT NOT NULL DEFAULT 'created',
+			created_at INTEGER NOT NULL,
+			updated_at INTEGER NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS chain_state_transitions (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			order_id TEXT NOT NULL,
+			from_status TEXT NOT NULL,
+			to_status TEXT NOT NULL,
+			proof_hash TEXT DEFAULT '',
+			signer TEXT DEFAULT 'aspira-core-node',
+			block_height INTEGER DEFAULT 0,
+			created_at INTEGER NOT NULL
+		)`,
+		`CREATE TABLE IF NOT EXISTS chain_audit_events (
+			event_id TEXT PRIMARY KEY,
+			order_id TEXT NOT NULL,
+			event_type TEXT NOT NULL,
+			event_hash TEXT NOT NULL,
+			prev_event_hash TEXT NOT NULL,
+			merkle_root TEXT DEFAULT '',
+			operator_hash TEXT DEFAULT '',
+			block_height INTEGER DEFAULT 0,
+			created_at INTEGER NOT NULL
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions(merchant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC)`,

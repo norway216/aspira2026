@@ -14,6 +14,7 @@ import (
 
 	"github.com/aspira/crossborder-payment-gateway/config"
 	"github.com/aspira/crossborder-payment-gateway/internal/auth"
+	"github.com/aspira/crossborder-payment-gateway/internal/blockchain"
 	"github.com/aspira/crossborder-payment-gateway/internal/channel"
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
 	"github.com/aspira/crossborder-payment-gateway/internal/engine"
@@ -98,9 +99,15 @@ func main() {
 	sagaOrchestrator.Register(saga.NewPaymentSaga(db, eventBus, channelRegistry))
 	log.Printf("Sagas registered: %v", sagaOrchestrator.ListSagas())
 
+	// Initialize blockchain layer (§3, §5.3 Aspira Consortium Chain)
+	chainSvc := blockchain.NewChainService(eventBus)
+	chainH := blockchain.NewChainHandler(chainSvc)
+	log.Printf("[Aspira Consortium Chain] Chain initialized: height=%d, hash=%s",
+		chainSvc.Blockchain.Height(), chainSvc.Blockchain.CurrentHash()[:16])
+
 	// Initialize handlers
 	authH := handler.NewAuthHandler(db, jwtMgr)
-	txnH := handler.NewTransactionHandler(db, engineClient, wsHub, rateService)
+	txnH := handler.NewTransactionHandler(db, engineClient, wsHub, rateService, chainSvc)
 	acctH := handler.NewAccountHandler(db)
 	merchantH := handler.NewMerchantHandler(db)
 	dashboardH := handler.NewDashboardHandler(db, engineClient)
@@ -202,6 +209,22 @@ func main() {
 					"last_hash":         eventBus.GetLastHash(),
 				})
 			})
+
+			// Blockchain explorer (§3, §5.3)
+			protected.GET("/chain/status", chainH.GetChainStatus)
+			protected.GET("/chain/blocks", chainH.ListBlocks)
+			protected.GET("/chain/blocks/:height", chainH.GetBlock)
+			protected.GET("/chain/blocks/hash/:hash", chainH.GetBlockByHash)
+			protected.GET("/chain/orders/:id", chainH.GetOrderOnChain)
+			protected.GET("/chain/orders/:id/state-history", chainH.GetOrderStateHistory)
+			protected.GET("/chain/proof/:tx_id", chainH.GetMerkleProof)
+			protected.POST("/chain/proof/verify", chainH.VerifyMerkleProof)
+			protected.GET("/chain/audit/:order_id", chainH.GetAuditTrail)
+			protected.POST("/chain/audit/verify/:order_id", chainH.VerifyAuditChain)
+			protected.POST("/chain/verify", middleware.AdminRequired(), chainH.VerifyChain)
+			protected.GET("/chain/settlement/:order_id", chainH.GetSettlementProof)
+			protected.GET("/chain/anchors", chainH.GetAnchors)
+			protected.GET("/chain/anchor/latest", chainH.GetLatestAnchor)
 		}
 
 		// External API key auth routes (for merchant API access with signature verification)

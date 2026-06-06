@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aspira/crossborder-payment-gateway/internal/blockchain"
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
 	"github.com/aspira/crossborder-payment-gateway/internal/engine"
 	"github.com/aspira/crossborder-payment-gateway/internal/exchange"
@@ -22,11 +23,12 @@ import (
 )
 
 type TransactionHandler struct {
-	db          database.DB
-	engine      *engine.EngineClient
-	wsHub       *websocket.Hub
-	tpsCounter  *TPSCounter
-	rateService *exchange.RateService
+	db           database.DB
+	engine       *engine.EngineClient
+	wsHub        *websocket.Hub
+	tpsCounter   *TPSCounter
+	rateService  *exchange.RateService
+	chainService *blockchain.ChainService
 }
 
 // dbRateAdapter adapts database.DB to exchange.DBFallback interface.
@@ -83,15 +85,16 @@ func (t *TPSCounter) CurrentTPS() float64 {
 	return float64(sum) / float64(validSeconds)
 }
 
-func NewTransactionHandler(db database.DB, engineClient *engine.EngineClient, wsHub *websocket.Hub, rateService *exchange.RateService) *TransactionHandler {
+func NewTransactionHandler(db database.DB, engineClient *engine.EngineClient, wsHub *websocket.Hub, rateService *exchange.RateService, chainService *blockchain.ChainService) *TransactionHandler {
 	// Wire up DB fallback for the rate service
 	rateService.SetDBFallback(&dbRateAdapter{db: db})
 	return &TransactionHandler{
-		db:          db,
-		engine:      engineClient,
-		wsHub:       wsHub,
-		tpsCounter:  &TPSCounter{},
-		rateService: rateService,
+		db:           db,
+		engine:       engineClient,
+		wsHub:        wsHub,
+		tpsCounter:   &TPSCounter{},
+		rateService:  rateService,
+		chainService: chainService,
 	}
 }
 
@@ -134,6 +137,10 @@ func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
 			txn := h.buildTransaction(result, req, merchantID.(string), payload.TransactionID)
 			if err := h.db.CreateTransaction(txn); err != nil {
 				log.Printf("Failed to save transaction: %v", err)
+			}
+			// Register on chain
+			if h.chainService != nil {
+				h.chainService.ProcessTransactionOnChain(txn)
 			}
 			h.tpsCounter.Record()
 			h.wsHub.BroadcastTransactionUpdate(txn)
@@ -273,6 +280,14 @@ func (h *TransactionHandler) processInternally(req models.CreateTransactionReque
 
 	if err := h.db.CreateTransaction(txn); err != nil {
 		return nil, fmt.Errorf("failed to save transaction: %w", err)
+	}
+
+	// Register transaction on the Aspira Consortium Chain (§5.3)
+	if h.chainService != nil {
+		if err := h.chainService.ProcessTransactionOnChain(txn); err != nil {
+			log.Printf("[AspiraConsortium·Txn] Chain registration warning: %v", err)
+			// Non-fatal: transaction still succeeds even if chain registration lags
+		}
 	}
 
 	// Broadcast via WebSocket
