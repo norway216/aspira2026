@@ -141,6 +141,44 @@ func (s *SQLiteDB) RunMigrations() error {
 			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 			UNIQUE(source, target)
 		)`,
+		`CREATE TABLE IF NOT EXISTS idempotency_keys (
+			idempotency_key TEXT PRIMARY KEY,
+			response_body TEXT NOT NULL,
+			response_status INTEGER NOT NULL,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS quotes (
+			id TEXT PRIMARY KEY,
+			merchant_id TEXT NOT NULL,
+			source_currency TEXT NOT NULL,
+			target_currency TEXT NOT NULL,
+			source_amount INTEGER NOT NULL,
+			target_amount INTEGER NOT NULL,
+			exchange_rate REAL NOT NULL,
+			fee INTEGER DEFAULT 0,
+			provider_id TEXT DEFAULT 'aspira-core',
+			expires_at DATETIME NOT NULL,
+			status TEXT DEFAULT 'pending',
+			rate_commitment_hash TEXT DEFAULT '',
+			signature TEXT DEFAULT '',
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE TABLE IF NOT EXISTS reconciliation_records (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			order_id TEXT NOT NULL,
+			transaction_id TEXT DEFAULT '',
+			internal_amount INTEGER DEFAULT 0,
+			channel_amount INTEGER DEFAULT 0,
+			chain_txn_id TEXT DEFAULT '',
+			currency TEXT DEFAULT '',
+			channel_name TEXT DEFAULT '',
+			channel_ref TEXT DEFAULT '',
+			match_status TEXT DEFAULT 'pending',
+			discrepancy TEXT DEFAULT '',
+			resolved_at DATETIME,
+			created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_merchant ON transactions(merchant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_transactions_created ON transactions(created_at DESC)`,
@@ -317,16 +355,16 @@ func (s *SQLiteDB) seed() error {
 		hoursAgo                      int
 	}
 	samples := []sampleTxn{
-		{models.TxnCompleted, "acct-002", "acct-001", "CNY", "USD", 50000, 7.2530, 150, "跨境电商货款", 20},
-		{models.TxnCompleted, "acct-005", "acct-002", "EUR", "CNY", 12000, 7.8740, 85, "进口商品结算", 18},
-		{models.TxnCompleted, "acct-006", "acct-001", "JPY", "USD", 250000, 0.00642, 320, "软件服务费", 16},
-		{models.TxnCompleted, "acct-001", "acct-008", "USD", "CHF", 8000, 0.8985, 60, "瑞士银行转账", 14},
-		{models.TxnFailed, "acct-009", "acct-003", "CAD", "USD", 15000, 0.7315, 110, "跨境贸易结算", 12},
-		{models.TxnCompleted, "acct-007", "acct-005", "GBP", "EUR", 9500, 1.1635, 75, "英国电商收款", 10},
-		{models.TxnRefunded, "acct-010", "acct-018", "AUD", "AUD", 20000, 1.0000, 40, "退款-商户争议", 8},
-		{models.TxnCompleted, "acct-003", "acct-012", "USD", "SGD", 18000, 1.3485, 130, "新加坡汇款", 6},
-		{models.TxnPending, "acct-013", "acct-002", "HKD", "CNY", 50000, 0.9285, 95, "香港贸易结算", 4},
-		{models.TxnCompleted, "acct-011", "acct-010", "NZD", "AUD", 12000, 0.9280, 70, "跨塔斯曼汇款", 2},
+		{models.StatusPaymentConfirmed, "acct-002", "acct-001", "CNY", "USD", 50000, 7.2530, 150, "跨境电商货款", 20},
+		{models.StatusPaymentConfirmed, "acct-005", "acct-002", "EUR", "CNY", 12000, 7.8740, 85, "进口商品结算", 18},
+		{models.StatusPaymentConfirmed, "acct-006", "acct-001", "JPY", "USD", 250000, 0.00642, 320, "软件服务费", 16},
+		{models.StatusPaymentConfirmed, "acct-001", "acct-008", "USD", "CHF", 8000, 0.8985, 60, "瑞士银行转账", 14},
+		{models.StatusPaymentFailed, "acct-009", "acct-003", "CAD", "USD", 15000, 0.7315, 110, "跨境贸易结算", 12},
+		{models.StatusPaymentConfirmed, "acct-007", "acct-005", "GBP", "EUR", 9500, 1.1635, 75, "英国电商收款", 10},
+		{models.StatusRefunded, "acct-010", "acct-018", "AUD", "AUD", 20000, 1.0000, 40, "退款-商户争议", 8},
+		{models.StatusPaymentConfirmed, "acct-003", "acct-012", "USD", "SGD", 18000, 1.3485, 130, "新加坡汇款", 6},
+		{models.StatusPaymentPending, "acct-013", "acct-002", "HKD", "CNY", 50000, 0.9285, 95, "香港贸易结算", 4},
+		{models.StatusPaymentConfirmed, "acct-011", "acct-010", "NZD", "AUD", 12000, 0.9280, 70, "跨塔斯曼汇款", 2},
 	}
 	prevHash := "0000000000000000000000000000000000000000000000000000000000000000"
 
@@ -506,6 +544,32 @@ func (s *SQLiteDB) UpdateTransactionStatus(id string, status models.TransactionS
 	_, err := s.db.Exec("UPDATE transactions SET status = ?, updated_at = ? WHERE id = ?",
 		string(status), time.Now(), id)
 	return err
+}
+
+func (s *SQLiteDB) UpdateTransactionStatusValidated(id string, from, to models.TransactionStatus) error {
+	// Verify the state transition is legal
+	if err := models.ValidateTransition(from, to); err != nil {
+		return fmt.Errorf("state transition rejected: %w", err)
+	}
+
+	// Atomically update only if current status matches expected "from"
+	result, err := s.db.Exec(
+		"UPDATE transactions SET status = ?, updated_at = ? WHERE id = ? AND status = ?",
+		string(to), time.Now(), id, string(from),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update status: %w", err)
+	}
+
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to check rows affected: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("status update conflict: expected status %s for txn %s", from, id)
+	}
+
+	return nil
 }
 
 func (s *SQLiteDB) GetTransactionsByStatus(status models.TransactionStatus) ([]models.Transaction, error) {
@@ -844,10 +908,10 @@ func (s *SQLiteDB) GetDashboardStats() (*models.DashboardStats, error) {
 		todayStart, tomorrowStart,
 	).Scan(&stats.TodayCount, &stats.TodayVolume)
 
-	// Success rate (last 24 hours)
+	// Success rate (last 24 hours) — counts payment_confirmed + settlement_proofed + reconciled + closed
 	var total24h, success24h int64
 	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= ?", oneDayAgo).Scan(&total24h)
-	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= ? AND status = 'completed'", oneDayAgo).Scan(&success24h)
+	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE created_at >= ? AND status IN ('payment_confirmed', 'settlement_proofed', 'reconciled', 'closed')", oneDayAgo).Scan(&success24h)
 	if total24h > 0 {
 		stats.SuccessRate = float64(success24h) / float64(total24h) * 100
 	}
@@ -855,8 +919,8 @@ func (s *SQLiteDB) GetDashboardStats() (*models.DashboardStats, error) {
 	// Active accounts
 	s.db.QueryRow("SELECT COUNT(*) FROM accounts WHERE status = 'active'").Scan(&stats.ActiveAccounts)
 
-	// Pending count
-	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE status = 'pending' OR status = 'processing'").Scan(&stats.PendingCount)
+	// Pending count — all non-terminal active states
+	s.db.QueryRow("SELECT COUNT(*) FROM transactions WHERE status IN ('payment_pending', 'payment_executing', 'compliance_prechecked', 'quote_locked', 'created', 'manual_review')").Scan(&stats.PendingCount)
 
 	return stats, nil
 }
@@ -949,6 +1013,231 @@ func (s *SQLiteDB) GetVolumeHistory(hours int) ([]models.VolumeDataPoint, error)
 	}
 
 	return points, nil
+}
+
+func (s *SQLiteDB) CreateIdempotencyKey(key string, responseBody string, responseStatus int) error {
+	_, err := s.db.Exec(
+		"INSERT INTO idempotency_keys (idempotency_key, response_body, response_status, created_at) VALUES (?, ?, ?, ?)",
+		key, responseBody, responseStatus, time.Now(),
+	)
+	return err
+}
+
+func (s *SQLiteDB) GetIdempotencyKey(key string) (string, int, error) {
+	var body string
+	var status int
+	err := s.db.QueryRow(
+		"SELECT response_body, response_status FROM idempotency_keys WHERE idempotency_key = ?",
+		key,
+	).Scan(&body, &status)
+	if err != nil {
+		return "", 0, err
+	}
+	return body, status, nil
+}
+
+func (s *SQLiteDB) GetMerchantByAPIKey(apiKey string) (*models.Merchant, error) {
+	m := &models.Merchant{}
+	err := s.db.QueryRow(
+		`SELECT id, name, api_key, api_secret, status, daily_limit, monthly_limit, callback_url, created_at, updated_at
+		 FROM merchants WHERE api_key = ? AND status = 'active'`, apiKey,
+	).Scan(&m.ID, &m.Name, &m.APIKey, &m.APISecret, &m.Status, &m.DailyLimit, &m.MonthlyLimit, &m.CallbackURL, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (s *SQLiteDB) CreateQuote(q *models.Quote) error {
+	_, err := s.db.Exec(
+		`INSERT INTO quotes (id, merchant_id, source_currency, target_currency,
+		 source_amount, target_amount, exchange_rate, fee, provider_id,
+		 expires_at, status, rate_commitment_hash, signature, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		q.ID, q.MerchantID, q.SourceCurrency, q.TargetCurrency,
+		q.SourceAmount, q.TargetAmount, q.ExchangeRate, q.Fee, q.ProviderID,
+		q.ExpiresAt, string(q.Status), q.RateCommitmentHash, q.Signature,
+		q.CreatedAt, q.UpdatedAt,
+	)
+	return err
+}
+
+func (s *SQLiteDB) GetQuote(id string) (*models.Quote, error) {
+	q := &models.Quote{}
+	var status string
+	err := s.db.QueryRow(
+		`SELECT id, merchant_id, source_currency, target_currency,
+		 source_amount, target_amount, exchange_rate, fee, provider_id,
+		 expires_at, status, rate_commitment_hash, signature, created_at, updated_at
+		 FROM quotes WHERE id = ?`, id,
+	).Scan(&q.ID, &q.MerchantID, &q.SourceCurrency, &q.TargetCurrency,
+		&q.SourceAmount, &q.TargetAmount, &q.ExchangeRate, &q.Fee, &q.ProviderID,
+		&q.ExpiresAt, &status, &q.RateCommitmentHash, &q.Signature,
+		&q.CreatedAt, &q.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	q.Status = models.QuoteStatus(status)
+	return q, nil
+}
+
+func (s *SQLiteDB) ListQuotes(merchantID string, page, pageSize int) ([]models.Quote, int64, error) {
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	if merchantID != "" {
+		where += " AND merchant_id = ?"
+		args = append(args, merchantID)
+	}
+
+	var total int64
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM quotes "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	offset := (page - 1) * pageSize
+
+	rows, err := s.db.Query(
+		`SELECT id, merchant_id, source_currency, target_currency,
+		 source_amount, target_amount, exchange_rate, fee, provider_id,
+		 expires_at, status, rate_commitment_hash, signature, created_at, updated_at
+		 FROM quotes `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		append(args, pageSize, offset)...,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var quotes []models.Quote
+	for rows.Next() {
+		var q models.Quote
+		var status string
+		if err := rows.Scan(&q.ID, &q.MerchantID, &q.SourceCurrency, &q.TargetCurrency,
+			&q.SourceAmount, &q.TargetAmount, &q.ExchangeRate, &q.Fee, &q.ProviderID,
+			&q.ExpiresAt, &status, &q.RateCommitmentHash, &q.Signature,
+			&q.CreatedAt, &q.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		q.Status = models.QuoteStatus(status)
+		quotes = append(quotes, q)
+	}
+	return quotes, total, nil
+}
+
+func (s *SQLiteDB) UpdateQuoteStatus(id string, status models.QuoteStatus) error {
+	_, err := s.db.Exec("UPDATE quotes SET status = ?, updated_at = ? WHERE id = ?",
+		string(status), time.Now(), id)
+	return err
+}
+
+func (s *SQLiteDB) AcceptQuote(id string, orderRef string) error {
+	_, err := s.db.Exec(
+		"UPDATE quotes SET status = ?, updated_at = ? WHERE id = ? AND status = 'pending'",
+		string(models.QuoteAccepted), time.Now(), id,
+	)
+	return err
+}
+
+func (s *SQLiteDB) CreateReconciliationRecord(r *models.ReconciliationRecord) error {
+	_, err := s.db.Exec(
+		`INSERT INTO reconciliation_records (order_id, transaction_id, internal_amount, channel_amount,
+		 chain_txn_id, currency, channel_name, channel_ref, match_status, discrepancy, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.OrderID, r.TransactionID, r.InternalAmount, r.ChannelAmount,
+		r.ChainTxnID, r.Currency, r.ChannelName, r.ChannelRef,
+		string(r.MatchStatus), r.Discrepancy, r.CreatedAt,
+	)
+	return err
+}
+
+func (s *SQLiteDB) GetReconciliationRecords(status string, page, pageSize int) ([]models.ReconciliationRecord, int64, error) {
+	where := "WHERE 1=1"
+	args := []interface{}{}
+	if status != "" {
+		where += " AND match_status = ?"
+		args = append(args, status)
+	}
+
+	var total int64
+	if err := s.db.QueryRow("SELECT COUNT(*) FROM reconciliation_records "+where, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 50
+	}
+	offset := (page - 1) * pageSize
+
+	rows, err := s.db.Query(
+		`SELECT id, order_id, transaction_id, internal_amount, channel_amount,
+		 chain_txn_id, currency, channel_name, channel_ref, match_status, discrepancy,
+		 resolved_at, created_at
+		 FROM reconciliation_records `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+		append(args, pageSize, offset)...,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var records []models.ReconciliationRecord
+	for rows.Next() {
+		var r models.ReconciliationRecord
+		var statusStr string
+		var resolvedAt sql.NullTime
+		if err := rows.Scan(&r.ID, &r.OrderID, &r.TransactionID, &r.InternalAmount, &r.ChannelAmount,
+			&r.ChainTxnID, &r.Currency, &r.ChannelName, &r.ChannelRef, &statusStr, &r.Discrepancy,
+			&resolvedAt, &r.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		r.MatchStatus = models.ReconciliationStatus(statusStr)
+		if resolvedAt.Valid {
+			r.ResolvedAt = &resolvedAt.Time
+		}
+		records = append(records, r)
+	}
+	return records, total, nil
+}
+
+func (s *SQLiteDB) UpdateReconciliationStatus(id int64, status models.ReconciliationStatus, discrepancy string) error {
+	now := time.Now()
+	_, err := s.db.Exec(
+		"UPDATE reconciliation_records SET match_status = ?, discrepancy = ?, resolved_at = ? WHERE id = ?",
+		string(status), discrepancy, now, id,
+	)
+	return err
+}
+
+func (s *SQLiteDB) GetReconciliationSummary() (matched, mismatched, pending, errors int64, err error) {
+	err = s.db.QueryRow(
+		"SELECT COUNT(*) FROM reconciliation_records WHERE match_status = 'matched'",
+	).Scan(&matched)
+	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+
+	s.db.QueryRow(
+		"SELECT COUNT(*) FROM reconciliation_records WHERE match_status = 'mismatched'",
+	).Scan(&mismatched)
+
+	s.db.QueryRow(
+		"SELECT COUNT(*) FROM reconciliation_records WHERE match_status = 'pending'",
+	).Scan(&pending)
+
+	s.db.QueryRow(
+		"SELECT COUNT(*) FROM reconciliation_records WHERE match_status = 'error'",
+	).Scan(&errors)
+
+	return matched, mismatched, pending, errors, nil
 }
 
 func generateToken(length int) string {

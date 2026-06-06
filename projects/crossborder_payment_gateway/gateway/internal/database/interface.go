@@ -8,6 +8,7 @@ type DB interface {
 	GetTransaction(id string) (*models.Transaction, error)
 	ListTransactions(query TransactionQuery) ([]models.Transaction, int64, error)
 	UpdateTransactionStatus(id string, status models.TransactionStatus) error
+	UpdateTransactionStatusValidated(id string, from, to models.TransactionStatus) error
 	GetTransactionsByStatus(status models.TransactionStatus) ([]models.Transaction, error)
 	GetLastTransactionHash() string
 
@@ -43,6 +44,26 @@ type DB interface {
 	GetRecentTransactions(limit int) ([]models.Transaction, error)
 	GetTPSHistory(seconds int) ([]models.TPSDataPoint, error)
 	GetVolumeHistory(hours int) ([]models.VolumeDataPoint, error)
+
+	// Idempotency
+	CreateIdempotencyKey(key string, responseBody string, responseStatus int) error
+	GetIdempotencyKey(key string) (responseBody string, responseStatus int, err error)
+
+	// API Keys
+	GetMerchantByAPIKey(apiKey string) (*models.Merchant, error)
+
+	// Quotes
+	CreateQuote(q *models.Quote) error
+	GetQuote(id string) (*models.Quote, error)
+	ListQuotes(merchantID string, page, pageSize int) ([]models.Quote, int64, error)
+	UpdateQuoteStatus(id string, status models.QuoteStatus) error
+	AcceptQuote(id string, orderRef string) error
+
+	// Reconciliation
+	CreateReconciliationRecord(r *models.ReconciliationRecord) error
+	GetReconciliationRecords(status string, page, pageSize int) ([]models.ReconciliationRecord, int64, error)
+	UpdateReconciliationStatus(id int64, status models.ReconciliationStatus, discrepancy string) error
+	GetReconciliationSummary() (matched, mismatched, pending, errors int64, err error)
 
 	// Lifecycle
 	RunMigrations() error

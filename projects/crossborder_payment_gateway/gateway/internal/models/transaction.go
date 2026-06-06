@@ -5,11 +5,34 @@ import "time"
 type TransactionStatus string
 
 const (
-	TxnPending    TransactionStatus = "pending"
-	TxnProcessing TransactionStatus = "processing"
-	TxnCompleted  TransactionStatus = "completed"
-	TxnFailed     TransactionStatus = "failed"
-	TxnRefunded   TransactionStatus = "refunded"
+	// Positive flow per architecture §5.3.2 PaymentStateMachine
+	StatusCreated              TransactionStatus = "created"
+	StatusQuoteLocked          TransactionStatus = "quote_locked"
+	StatusCompliancePrechecked TransactionStatus = "compliance_prechecked"
+	StatusPaymentPending       TransactionStatus = "payment_pending"
+	StatusPaymentExecuting     TransactionStatus = "payment_executing"
+	StatusPaymentConfirmed     TransactionStatus = "payment_confirmed"
+	StatusSettlementProofed    TransactionStatus = "settlement_proofed"
+	StatusReconciled           TransactionStatus = "reconciled"
+	StatusClosed               TransactionStatus = "closed"
+
+	// Error / exception states per architecture §5.3.2
+	StatusRiskRejected  TransactionStatus = "risk_rejected"
+	StatusPaymentFailed TransactionStatus = "payment_failed"
+	StatusRefundPending TransactionStatus = "refund_pending"
+	StatusRefunded      TransactionStatus = "refunded"
+	StatusDisputed      TransactionStatus = "disputed"
+	StatusFrozen        TransactionStatus = "frozen"
+	StatusManualReview  TransactionStatus = "manual_review"
+	StatusCancelled     TransactionStatus = "cancelled"
+)
+
+// Legacy aliases for backward compatibility during migration
+const (
+	TxnPending    = StatusPaymentPending
+	TxnProcessing = StatusPaymentExecuting
+	TxnCompleted  = StatusPaymentConfirmed
+	TxnFailed     = StatusPaymentFailed
 )
 
 type Transaction struct {
