@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif">
+  <defs>
+    <linearGradient id="heroText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF2D55"/>
+      <stop offset="30%" style="stop-color:#AF52DE"/>
+      <stop offset="60%" style="stop-color:#5856D6"/>
+      <stop offset="100%" style="stop-color:#007AFF"/>
+    </linearGradient>
+    <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#FF2D55"/><stop offset="100%" style="stop-color:#FF8E9E"/></linearGradient>
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#5E1F8A"/><stop offset="100%" style="stop-color:#CA7AF0"/></linearGradient>
+    <linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#007D4C"/><stop offset="100%" style="stop-color:#6EE7A8"/></linearGradient>
+    <linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#E85D04"/><stop offset="100%" style="stop-color:#FFC043"/></linearGradient>
+    <linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#0038A8"/><stop offset="100%" style="stop-color:#64D2FF"/></linearGradient>
+    <linearGradient id="g6" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#C41E70"/><stop offset="100%" style="stop-color:#FF6B8A"/></linearGradient>
+  </defs>
+
+  <rect width="1200" height="600" fill="#000000"/>
+
+  <!-- Header -->
+  <rect width="1200" height="56" fill="rgba(0,0,0,0.72)"/>
+  <line y1="56" x1="0" y2="56" x2="1200" stroke="rgba(255,255,255,0.08)"/>
+  <text x="32" y="36" fill="#F5F5F7" font-size="16" font-weight="700">◆ Aspira Studio</text>
+  <text x="750" y="36" fill="#F5F5F7" font-size="13" font-weight="500">Projects</text>
+
+  <!-- Page title -->
+  <text x="600" y="120" text-anchor="middle" fill="#98989D" font-size="13" font-weight="600" letter-spacing="0.16">PROJECTS</text>
+  <text x="600" y="165" text-anchor="middle" fill="url(#heroText)" font-size="36" font-weight="800" letter-spacing="-0.04">Engineering architecture &amp; system design.</text>
+  <text x="600" y="200" text-anchor="middle" fill="#98989D" font-size="15">In-depth architecture documents covering embedded Linux, medical imaging, backend systems, and C++ engineering.</text>
+
+  <!-- Project Cards Row 1 -->
+  <g transform="translate(40, 230)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g1)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">Iris Recognition System</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Medical Imaging</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">C++, OpenCV, ONNX Runtime, FFmpeg, Android</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <g transform="translate(420, 230)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g2)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">Embedded Device Ops Platform</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Embedded Linux</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">Go, WebSocket, gRPC, Prometheus, Grafana, RK3588</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <g transform="translate(800, 230)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g3)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">Secure Traffic Gateway</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Backend Systems</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">Go, TLS, Docker, Kubernetes, Prometheus, Grafana</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <!-- Project Cards Row 2 -->
+  <g transform="translate(40, 380)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g4)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">Face Detection &amp; Recognition</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Medical Imaging</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">C++20, OpenCV, dlib, Qt/QML, ONNX Runtime</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <g transform="translate(420, 380)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g5)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">Hardware Wallet</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Security</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">C++20, Qt/QML, SQLite, OpenSSL, spdlog</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <g transform="translate(800, 380)">
+    <rect width="360" height="130" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+    <rect width="360" height="55" rx="16" fill="url(#g6)"/>
+    <text x="180" y="35" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="17" font-weight="800">LAN Device Management</text>
+    <text x="16" y="78" fill="#98989D" font-size="11">Backend Systems</text>
+    <text x="16" y="98" fill="#98989D" font-size="10">Go, WebSocket, SQLite, Redis, Docker, Prometheus</text>
+    <text x="340" y="115" text-anchor="end" fill="#007AFF" font-size="12" font-weight="600">Read Architecture →</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="585" text-anchor="middle" fill="#98989D" font-size="12">© 2026 Aspira Studio. Built with Go &amp; intent.</text>
+</svg>

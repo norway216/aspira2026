@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" font-family="-apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif">
+  <defs>
+    <linearGradient id="heroText" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF2D55"/>
+      <stop offset="30%" style="stop-color:#AF52DE"/>
+      <stop offset="60%" style="stop-color:#5856D6"/>
+      <stop offset="100%" style="stop-color:#007AFF"/>
+    </linearGradient>
+    <linearGradient id="btnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF2D55"/>
+      <stop offset="50%" style="stop-color:#AF52DE"/>
+      <stop offset="100%" style="stop-color:#007AFF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="0%">
+      <stop offset="0%" style="stop-color:rgba(175,82,222,0.15)"/>
+      <stop offset="100%" style="stop-color:transparent"/>
+    </radialGradient>
+    <radialGradient id="cardGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF2D55"/>
+      <stop offset="100%" style="stop-color:#FF8E9E"/>
+    </radialGradient>
+    <radialGradient id="cardGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5E1F8A"/>
+      <stop offset="100%" style="stop-color:#CA7AF0"/>
+    </radialGradient>
+    <radialGradient id="cardGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#007D4C"/>
+      <stop offset="100%" style="stop-color:#6EE7A8"/>
+    </radialGradient>
+    <radialGradient id="cardGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E85D04"/>
+      <stop offset="100%" style="stop-color:#FFC043"/>
+    </radialGradient>
+    <filter id="glass">
+      <feGaussianBlur stdDeviation="8"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="700" fill="#000000"/>
+
+  <!-- Ambient glow -->
+  <ellipse cx="600" cy="100" rx="400" ry="200" fill="url(#glow)"/>
+
+  <!-- Header bar -->
+  <rect width="1200" height="56" fill="rgba(0,0,0,0.72)"/>
+  <line y1="56" x1="0" y2="56" x2="1200" stroke="rgba(255,255,255,0.08)"/>
+  <text x="32" y="36" fill="#F5F5F7" font-size="16" font-weight="700" letter-spacing="-0.02">◆ Aspira Studio</text>
+  <text x="750" y="36" fill="#98989D" font-size="13" font-weight="500">Projects</text>
+  <text x="830" y="36" fill="#98989D" font-size="13" font-weight="500">Writings</text>
+  <text x="914" y="36" fill="#98989D" font-size="13" font-weight="500">About</text>
+  <text x="986" y="36" fill="#98989D" font-size="13" font-weight="500">Resume</text>
+  <text x="1060" y="36" fill="#98989D" font-size="13" font-weight="500">Contact</text>
+
+  <!-- Hero content -->
+  <text x="600" y="180" text-anchor="middle" fill="#98989D" font-size="13" font-weight="600" letter-spacing="0.16">ASPIRA STUDIO</text>
+
+  <text x="600" y="250" text-anchor="middle" fill="url(#heroText)" font-size="52" font-weight="800" letter-spacing="-0.04">Building quiet, reliable</text>
+  <text x="600" y="310" text-anchor="middle" fill="url(#heroText)" font-size="52" font-weight="800" letter-spacing="-0.04">engineering systems.</text>
+
+  <text x="600" y="370" text-anchor="middle" fill="#98989D" font-size="18">I design and build embedded Linux systems, medical imaging software,</text>
+  <text x="600" y="396" text-anchor="middle" fill="#98989D" font-size="18">and backend platforms with C++, Go, Qt and Linux.</text>
+
+  <!-- Tags -->
+  <rect x="440" y="420" width="110" height="32" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="495" y="441" text-anchor="middle" fill="#F5F5F7" font-size="13" font-weight="500">Embedded Linux</text>
+  <rect x="558" y="420" width="100" height="32" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="608" y="441" text-anchor="middle" fill="#F5F5F7" font-size="13" font-weight="500">Medical Imaging</text>
+  <rect x="666" y="420" width="45" height="32" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="688" y="441" text-anchor="middle" fill="#F5F5F7" font-size="13" font-weight="500">C++</text>
+  <rect x="719" y="420" width="40" height="32" rx="16" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.08)"/>
+  <text x="739" y="441" text-anchor="middle" fill="#F5F5F7" font-size="13" font-weight="500">Go</text>
+
+  <!-- Buttons -->
+  <rect x="480" y="474" width="130" height="40" rx="20" fill="url(#btnGrad)"/>
+  <text x="545" y="499" text-anchor="middle" fill="#FFF" font-size="14" font-weight="600">View Projects</text>
+  <rect x="620" y="474" width="120" height="40" rx="20" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.15)"/>
+  <text x="680" y="499" text-anchor="middle" fill="#F5F5F7" font-size="14" font-weight="500">Read Writings</text>
+
+  <!-- Featured section header -->
+  <text x="32" y="580" fill="#F5F5F7" font-size="22" font-weight="700">Featured Architecture Projects</text>
+  <text x="1168" y="580" text-anchor="end" fill="#007AFF" font-size="14" font-weight="500">All Projects →</text>
+
+  <!-- Featured project cards -->
+  <rect x="32" y="600" width="272" height="80" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+  <rect x="32" y="600" width="272" height="40" rx="16" fill="url(#cardGrad1)"/>
+  <text x="168" y="625" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="14" font-weight="800">Iris Recognition</text>
+
+  <rect x="316" y="600" width="272" height="80" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+  <rect x="316" y="600" width="272" height="40" rx="16" fill="url(#cardGrad2)"/>
+  <text x="452" y="625" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="14" font-weight="800">Embedded Ops</text>
+
+  <rect x="600" y="600" width="272" height="80" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+  <rect x="600" y="600" width="272" height="40" rx="16" fill="url(#cardGrad3)"/>
+  <text x="736" y="625" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="14" font-weight="800">Secure Gateway</text>
+
+  <rect x="884" y="600" width="272" height="80" rx="16" fill="#1C1C1E" stroke="rgba(255,255,255,0.06)"/>
+  <rect x="884" y="600" width="272" height="40" rx="16" fill="url(#cardGrad4)"/>
+  <text x="1020" y="625" text-anchor="middle" fill="rgba(255,255,255,0.9)" font-size="14" font-weight="800">Face Recognition</text>
+</svg>
