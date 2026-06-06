@@ -1,111 +1,123 @@
-/* ===== Dashboard Page ===== */
+/* ===== Dashboard Page — Enhanced ===== */
 var _dashboard = {
     tpsChart: null,
     volumeChart: null,
     refreshTimer: null,
     wsUnsubs: [],
     tpsHistory: [],
-    tpsMaxPoints: 60
+    tpsMaxPoints: 60,
+    _initialized: false
 };
 
 function init_dashboard() {
     var d = _dashboard;
 
+    // Reset stat card values for fresh animations
+    StatCard.reset();
+
     // Load stats
     loadDashboardStats();
 
-    // Init TPS chart
-    d.tpsChart = Chart.create('chartTps', {
-        tooltip: {
-            trigger: 'axis',
-            formatter: function (params) {
-                var p = params[0];
-                if (!p) return '';
-                return p.axisValue + '<br/>TPS: <strong>' + p.value + '</strong>';
-            }
-        },
-        xAxis: {
-            type: 'category',
-            data: []
-        },
-        yAxis: {
-            type: 'value',
-            name: 'TPS',
-            min: 0
-        },
-        series: [{
-            name: 'TPS',
-            type: 'line',
-            smooth: true,
-            showSymbol: false,
-            lineStyle: {
-                color: '#FF2D55',
-                width: 2
-            },
-            areaStyle: {
-                color: {
-                    type: 'linear',
-                    x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                        { offset: 0, color: 'rgba(255,45,85,0.3)' },
-                        { offset: 1, color: 'rgba(255,45,85,0.02)' }
-                    ]
+    // Init TPS chart (only once)
+    if (!d._initialized) {
+        d.tpsChart = Chart.create('chartTps', {
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    var p = params[0];
+                    if (!p) return '';
+                    return p.axisValue + '<br/>TPS: <strong>' + (p.value || 0).toFixed(1) + '</strong>';
                 }
             },
-            data: []
-        }],
-        grid: { top: 15, right: 15, bottom: 25, left: 45 }
-    });
+            xAxis: {
+                type: 'category',
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: 'TPS',
+                min: 0
+            },
+            series: [{
+                name: 'TPS',
+                type: 'line',
+                smooth: true,
+                showSymbol: false,
+                lineStyle: {
+                    color: '#FF2D55',
+                    width: 2.5
+                },
+                areaStyle: {
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: 'rgba(255,45,85,0.35)' },
+                            { offset: 1, color: 'rgba(255,45,85,0.02)' }
+                        ]
+                    }
+                },
+                data: []
+            }],
+            grid: { top: 15, right: 15, bottom: 25, left: 45 }
+        });
 
-    // Init Volume chart
-    d.volumeChart = Chart.create('chartVolume', {
-        tooltip: {
-            trigger: 'axis',
-            formatter: function (params) {
-                var p = params[0];
-                if (!p) return '';
-                return p.axisValue + '<br/>交易量: <strong>' + formatCurrency(p.value) + '</strong>';
-            }
-        },
-        xAxis: {
-            type: 'category',
-            data: []
-        },
-        yAxis: {
-            type: 'value',
-            name: '交易量'
-        },
-        series: [{
-            name: '交易量',
-            type: 'bar',
-            barWidth: '60%',
-            itemStyle: {
-                borderRadius: [4, 4, 0, 0],
-                color: {
-                    type: 'linear',
-                    x: 0, y: 0, x2: 0, y2: 1,
-                    colorStops: [
-                        { offset: 0, color: '#007AFF' },
-                        { offset: 1, color: 'rgba(0,122,255,0.3)' }
-                    ]
+        // Init Volume chart (only once)
+        d.volumeChart = Chart.create('chartVolume', {
+            tooltip: {
+                trigger: 'axis',
+                formatter: function (params) {
+                    var p = params[0];
+                    if (!p) return '';
+                    return p.axisValue + '<br/>交易量: <strong>' + formatCurrency(p.value || 0) + '</strong>';
                 }
             },
-            data: []
-        }],
-        grid: { top: 15, right: 15, bottom: 25, left: 55 }
-    });
+            xAxis: {
+                type: 'category',
+                data: []
+            },
+            yAxis: {
+                type: 'value',
+                name: '交易量'
+            },
+            series: [{
+                name: '交易量',
+                type: 'bar',
+                barWidth: '60%',
+                itemStyle: {
+                    borderRadius: [6, 6, 0, 0],
+                    color: {
+                        type: 'linear',
+                        x: 0, y: 0, x2: 0, y2: 1,
+                        colorStops: [
+                            { offset: 0, color: '#64D2FF' },
+                            { offset: 1, color: 'rgba(0,122,255,0.3)' }
+                        ]
+                    }
+                },
+                emphasis: {
+                    itemStyle: {
+                        color: '#007AFF'
+                    }
+                },
+                data: []
+            }],
+            grid: { top: 15, right: 15, bottom: 25, left: 55 }
+        });
 
-    // Load TPS history
+        d._initialized = true;
+    }
+
+    // Load data
     loadTpsHistory();
     loadVolumeHistory();
-
-    // Load recent transactions
     loadRecentTransactions();
 
     // WebSocket listeners
     setupDashboardWS();
 
     // Auto-refresh fallback every 5s
+    if (d.refreshTimer) clearInterval(d.refreshTimer);
     d.refreshTimer = setInterval(function () {
         if (!WS.connected) {
             loadDashboardStats();
@@ -128,9 +140,8 @@ function cleanup_dashboard() {
     // Unsubscribe WS handlers
     d.wsUnsubs.forEach(function (fn) { if (typeof fn === 'function') fn(); });
     d.wsUnsubs = [];
-    // Dispose charts
-    if (d.tpsChart) { d.tpsChart.dispose(); d.tpsChart = null; }
-    if (d.volumeChart) { d.volumeChart.dispose(); d.volumeChart = null; }
+    // Don't dispose charts on navigation - keep them for when we return
+    StatCard.reset();
 }
 
 function setupDashboardWS() {
@@ -143,11 +154,9 @@ function setupDashboardWS() {
     d.wsUnsubs.push(
         WS.on('transaction_update', function (data) {
             var txn = data.transaction || data;
-            // Update TPS
             updateTpsFromTransaction(txn);
-            // Prepend to recent transactions
             prependTransaction(txn);
-            // Update volume stat
+            // Refresh stats to update counters
             loadDashboardStats();
         })
     );
@@ -161,6 +170,7 @@ function setupDashboardWS() {
     d.wsUnsubs.push(
         WS.on('dashboard_stats', function (data) {
             updateStatCards(data);
+            updateHeroStats(data);
         })
     );
 
@@ -185,7 +195,6 @@ function updateTpsFromTransaction(txn) {
     var d = _dashboard;
     if (d.tpsChart) {
         var time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        // Increment last TPS point or add new
         if (d.tpsHistory.length > 0) {
             var last = d.tpsHistory[d.tpsHistory.length - 1];
             if (last.time === time) {
@@ -210,6 +219,7 @@ async function loadDashboardStats() {
     try {
         var data = await API.get('/api/v1/dashboard');
         updateStatCards(data);
+        updateHeroStats(data);
         if (data.engine) {
             updateEnginePanel(data.engine);
         }
@@ -240,6 +250,49 @@ function updateStatCards(data) {
         trend: data.trend,
         trendUp: data.trend_up
     });
+}
+
+/* Update hero section stats */
+function updateHeroStats(data) {
+    var heroTps = document.getElementById('heroTps');
+    var heroVolume = document.getElementById('heroVolume');
+    var heroSuccess = document.getElementById('heroSuccess');
+
+    if (heroTps) {
+        var tps = parseFloat(data.tps || data.current_tps || 0);
+        if (heroTps.textContent !== tps.toFixed(1)) {
+            if (typeof Animations !== 'undefined' && Animations.animateValue) {
+                Animations.animateValue(heroTps, parseFloat(heroTps.textContent) || 0, tps, 600,
+                    function (v) { return v.toFixed(1); });
+            } else {
+                heroTps.textContent = tps.toFixed(1);
+            }
+        }
+    }
+
+    if (heroVolume) {
+        var vol = parseFloat(data.today_volume || data.volume || 0);
+        var volDisplay = formatHeroVolume(vol);
+        if (heroVolume.textContent !== volDisplay) {
+            heroVolume.textContent = volDisplay;
+            Animations.pulse(heroVolume);
+        }
+    }
+
+    if (heroSuccess) {
+        var rate = parseFloat(data.success_rate || data.rate || 0);
+        var rateDisplay = rate.toFixed(1) + '%';
+        if (heroSuccess.textContent !== rateDisplay) {
+            heroSuccess.textContent = rateDisplay;
+            Animations.pulse(heroSuccess);
+        }
+    }
+}
+
+function formatHeroVolume(val) {
+    if (val >= 100000000) return '¥' + (val / 100000000).toFixed(1) + '亿';
+    if (val >= 10000) return '¥' + (val / 10000).toFixed(1) + '万';
+    return '¥' + val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function updateEnginePanel(data) {
@@ -328,7 +381,7 @@ async function loadRecentTransactions() {
         var txns = data.data || data.transactions || [];
         renderRecentTxns(txns);
     } catch (e) {
-        container.innerHTML = '<div class="empty-state"><p>加载失败</p></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><p>加载失败</p></div>';
     }
 }
 
@@ -337,7 +390,7 @@ function renderRecentTxns(txns) {
     if (!container) return;
 
     if (!txns || txns.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>暂无交易记录</p></div>';
+        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><h3>暂无交易</h3><p>还没有任何交易记录</p></div>';
         return;
     }
 
@@ -375,7 +428,6 @@ function prependTransaction(txn) {
     if (!container) return;
     var table = container.querySelector('.data-table');
     if (!table) {
-        // Re-render if table doesn't exist
         loadRecentTransactions();
         return;
     }

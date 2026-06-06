@@ -1,4 +1,4 @@
-/* ===== Toast Notification System ===== */
+/* ===== Toast Notification System — Enhanced ===== */
 const Toast = {
     maxVisible: 5,
     activeToasts: [],
@@ -12,7 +12,7 @@ const Toast = {
         if (this.activeToasts.length >= this.maxVisible) {
             const oldest = this.activeToasts.shift();
             if (oldest && oldest.parentNode) {
-                oldest.remove();
+                this._animateOut(oldest, true);
             }
         }
 
@@ -28,7 +28,7 @@ const Toast = {
 
         const toast = document.createElement('div');
         toast.className = 'toast toast-' + type;
-        toast.innerHTML = '' +
+        toast.innerHTML =
             (icons[type] || icons.info) +
             '<span class="toast-message">' + escapeHtml(message) + '</span>' +
             '<button class="toast-close" onclick="Toast.dismiss(this.parentElement)">' +
@@ -38,10 +38,10 @@ const Toast = {
         container.appendChild(toast);
         this.activeToasts.push(toast);
 
-        // Auto dismiss
+        // Auto dismiss with countdown
         if (duration > 0) {
-            setTimeout(() => {
-                this.dismiss(toast);
+            toast._dismissTimer = setTimeout(function () {
+                Toast.dismiss(toast);
             }, duration);
         }
 
@@ -50,16 +50,34 @@ const Toast = {
 
     dismiss(toast) {
         if (!toast || !toast.parentNode) return;
-        toast.style.transition = 'all 0.3s ease';
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateX(100%)';
-        setTimeout(() => {
+        this._animateOut(toast);
+    },
+
+    _animateOut(toast, instant) {
+        if (!toast || !toast.parentNode) return;
+
+        // Clear auto-dismiss timer
+        if (toast._dismissTimer) {
+            clearTimeout(toast._dismissTimer);
+            toast._dismissTimer = null;
+        }
+
+        if (instant) {
+            toast.remove();
+            const idx = this.activeToasts.indexOf(toast);
+            if (idx !== -1) this.activeToasts.splice(idx, 1);
+            return;
+        }
+
+        toast.classList.add('toast-exit');
+        toast.addEventListener('animationend', function handler() {
+            toast.removeEventListener('animationend', handler);
             if (toast.parentNode) {
                 toast.remove();
-                const idx = this.activeToasts.indexOf(toast);
-                if (idx !== -1) this.activeToasts.splice(idx, 1);
+                const idx = Toast.activeToasts.indexOf(toast);
+                if (idx !== -1) Toast.activeToasts.splice(idx, 1);
             }
-        }, 300);
+        });
     },
 
     success(msg, duration) {
@@ -76,6 +94,13 @@ const Toast = {
 
     info(msg, duration) {
         return this.show(msg, 'info', duration);
+    },
+
+    // Dismiss all toasts
+    dismissAll() {
+        this.activeToasts.slice().forEach(function (t) {
+            Toast.dismiss(t);
+        });
     }
 };
 

@@ -9,6 +9,9 @@
 </head>
 <body>
     <div id="app">
+        <!-- Sidebar Overlay (mobile) -->
+        <div id="sidebar-overlay"></div>
+
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-logo">
@@ -132,7 +135,7 @@
                     <div class="login-card">
                         <div class="login-logo-area">
                             <div class="login-logo-icon">
-                                <svg width="48" height="48" viewBox="0 0 28 28" fill="none">
+                                <svg width="56" height="56" viewBox="0 0 28 28" fill="none">
                                     <rect width="28" height="28" rx="8" fill="url(#login-grad)"/>
                                     <path d="M8 14L12 18L20 10" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                                     <defs>
@@ -157,7 +160,7 @@
                                 <input type="password" id="loginPassword" class="form-input" placeholder="请输入密码" autocomplete="current-password" required>
                             </div>
                             <button type="submit" class="btn btn-gradient btn-full" id="loginBtn">
-                                <span>登 录</span>
+                                <span class="btn-text">登 录</span>
                                 <div class="btn-spinner hidden" id="loginSpinner">
                                     <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                                         <circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="2" stroke-dasharray="30" stroke-linecap="round"/>
@@ -167,6 +170,7 @@
                         </form>
                         <div class="login-footer">
                             <span class="login-error" id="loginError"></span>
+                            <p class="login-info">默认账户: admin / admin123</p>
                         </div>
                     </div>
                 </div>
@@ -174,8 +178,82 @@
 
             <!-- Dashboard Page -->
             <div id="page-dashboard" class="page-content" style="display:none">
+                <!-- Hero Welcome Section -->
+                <div class="hero-section">
+                    <div class="hero-content">
+                        <div class="hero-text">
+                            <h1>跨境支付，<br>触手可及</h1>
+                            <p>高性能实时支付网关，支持多币种交易与毫秒级清算</p>
+                            <div class="hero-stats">
+                                <div class="hero-stat">
+                                    <div class="hero-stat-value" id="heroTps">0</div>
+                                    <div class="hero-stat-label">实时 TPS</div>
+                                </div>
+                                <div class="hero-stat">
+                                    <div class="hero-stat-value" id="heroVolume">¥0</div>
+                                    <div class="hero-stat-label">24h 交易量</div>
+                                </div>
+                                <div class="hero-stat">
+                                    <div class="hero-stat-value" id="heroSuccess">0%</div>
+                                    <div class="hero-stat-label">成功率</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="hero-visual">
+                            <div class="hero-graphic">
+                                <div class="hero-graphic-inner">
+                                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                        <circle cx="24" cy="24" r="20" stroke="white" stroke-width="2" stroke-opacity="0.8"/>
+                                        <path d="M16 24L22 30L32 18" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="quick-actions">
+                    <button class="quick-action" onclick="App.navigate('transactions')">
+                        <span class="qa-icon" style="background:var(--gradient-blue)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M8 3V13M3 8H13" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </span>
+                        新建交易
+                    </button>
+                    <button class="quick-action" onclick="App.navigate('accounts')">
+                        <span class="qa-icon" style="background:var(--gradient-green)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <rect x="2" y="3" width="12" height="10" rx="2" stroke="white" stroke-width="1.5"/>
+                                <path d="M2 7H14" stroke="white" stroke-width="1.5"/>
+                            </svg>
+                        </span>
+                        查看账户
+                    </button>
+                    <button class="quick-action" onclick="App.navigate('merchants')">
+                        <span class="qa-icon" style="background:var(--gradient-purple)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <path d="M2 6L8 1L14 6V14H2V6Z" stroke="white" stroke-width="1.5"/>
+                                <path d="M6 11C6 9.89543 6.89543 9 8 9C9.10457 9 10 9.89543 10 11" stroke="white" stroke-width="1.5"/>
+                            </svg>
+                        </span>
+                        管理商户
+                    </button>
+                    <button class="quick-action" onclick="App.navigate('settings')">
+                        <span class="qa-icon" style="background:var(--gradient-orange)">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                <circle cx="8" cy="8" r="2.5" stroke="white" stroke-width="1.5"/>
+                                <path d="M8 1V2.5M8 13.5V15M2 8H3.5M12.5 8H14" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+                            </svg>
+                        </span>
+                        系统设置
+                    </button>
+                </div>
+
+                <!-- Page Header -->
                 <div class="page-header">
-                    <h2>仪表盘</h2>
+                    <h2>概览</h2>
                     <div class="page-header-actions">
                         <span class="last-updated" id="lastUpdated">--</span>
                         <button class="btn btn-ghost btn-sm" onclick="init_dashboard()">
@@ -187,24 +265,47 @@
                         </button>
                     </div>
                 </div>
+
                 <div class="stats-grid" id="dashboardStats">
                     <div class="stat-card gradient-pink" id="stat-tps">
                         <div class="stat-value">0</div>
                         <div class="stat-label">实时 TPS</div>
+                        <div class="stat-icon">
+                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                                <path d="M4 32L14 18L22 28L36 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
                     </div>
                     <div class="stat-card gradient-blue" id="stat-volume">
                         <div class="stat-value">¥0</div>
                         <div class="stat-label">今日交易量</div>
+                        <div class="stat-icon">
+                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                                <circle cx="20" cy="20" r="14" stroke="white" stroke-width="2"/>
+                                <path d="M20 12V20L26 26" stroke="white" stroke-width="2" stroke-linecap="round"/>
+                            </svg>
+                        </div>
                     </div>
                     <div class="stat-card gradient-green" id="stat-success-rate">
                         <div class="stat-value">0%</div>
                         <div class="stat-label">交易成功率</div>
+                        <div class="stat-icon">
+                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                                <path d="M8 20L17 29L32 12" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </div>
                     </div>
                     <div class="stat-card gradient-orange" id="stat-engine">
                         <div class="stat-value">
                             <span class="status-dot status-disconnected"></span>
                         </div>
                         <div class="stat-label">引擎状态</div>
+                        <div class="stat-icon">
+                            <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
+                                <rect x="6" y="6" width="28" height="28" rx="4" stroke="white" stroke-width="2"/>
+                                <rect x="12" y="12" width="16" height="16" rx="2" stroke="white" stroke-width="1.5"/>
+                            </svg>
+                        </div>
                     </div>
                 </div>
                 <div class="charts-grid">
@@ -500,6 +601,7 @@
         </div>
     </div>
 
+    <!-- Scripts -->
     <script src="/static/js/api.js"></script>
     <script src="/static/js/ws.js"></script>
     <script src="/static/js/components/toast.js"></script>
@@ -508,6 +610,7 @@
     <script src="/static/js/components/chart.js"></script>
     <script src="/static/js/components/stat_card.js"></script>
     <script src="/static/js/components/sidebar.js"></script>
+    <script src="/static/js/animations.js"></script>
     <script src="/static/js/pages/login.js"></script>
     <script src="/static/js/pages/dashboard.js"></script>
     <script src="/static/js/pages/transactions.js"></script>
