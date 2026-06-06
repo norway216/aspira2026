@@ -293,32 +293,27 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 /* ===== Re-initialize on page changes (for dynamically loaded content) ===== */
-const _origShowPage = App ? App.showPage : null;
-if (typeof App !== 'undefined' && App.showPage) {
-    const origShowPage = App.showPage.bind(App);
-    App._origShowPage = origShowPage;
+// Defer to DOMContentLoaded so App is guaranteed to exist
+document.addEventListener('DOMContentLoaded', function () {
+    var mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
 
-    // We'll hook into showPage from app.js after it's loaded
-    // This is a fallback observer for dynamic content
-    const mainContent = document.getElementById('main-content');
-    if (mainContent) {
-        const mutationObserver = new MutationObserver(function () {
-            // Re-apply reveal animations for new content
-            setTimeout(function () {
-                const cards = mainContent.querySelectorAll('.card:not([data-revealed]), .stat-card:not([data-revealed]), .account-card:not([data-revealed])');
-                cards.forEach(function (el) {
-                    el.setAttribute('data-revealed', 'true');
-                    el.style.opacity = '0';
-                    el.style.transform = 'translateY(20px)';
-                    el.style.transition = 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)';
-                    requestAnimationFrame(function () {
-                        el.style.opacity = '1';
-                        el.style.transform = 'translateY(0)';
-                    });
+    // Observer for dynamically loaded content — reveals cards with animation
+    var mutationObserver = new MutationObserver(function () {
+        setTimeout(function () {
+            var cards = mainContent.querySelectorAll('.card:not([data-revealed]), .stat-card:not([data-revealed]), .account-card:not([data-revealed])');
+            cards.forEach(function (el, i) {
+                el.setAttribute('data-revealed', 'true');
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'opacity 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ' + (i * 0.03) + 's, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) ' + (i * 0.03) + 's';
+                requestAnimationFrame(function () {
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
                 });
-            }, 50);
-        });
+            });
+        }, 50);
+    });
 
-        mutationObserver.observe(mainContent, { childList: true, subtree: true });
-    }
-}
+    mutationObserver.observe(mainContent, { childList: true, subtree: true });
+});

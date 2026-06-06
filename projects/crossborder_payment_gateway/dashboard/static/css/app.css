@@ -1502,24 +1502,26 @@ code {
     margin-left: 8px;
 }
 
-/* ===== Login Page — Enhanced Split Layout ===== */
-.login-container {
+/* ===== Login Overlay — Full-screen, outside app grid ===== */
+#login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: var(--color-bg);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: calc(100vh - 56px);
-    padding: 40px 24px;
-    position: relative;
     overflow: hidden;
 }
 
-.login-container::before {
+#login-overlay.hidden {
+    display: none;
+}
+
+#login-overlay::before {
     content: '';
-    position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
+    position: absolute;
+    inset: 0;
     background:
         radial-gradient(ellipse at 20% 50%, rgba(175, 82, 222, 0.1) 0%, transparent 50%),
         radial-gradient(ellipse at 80% 20%, rgba(255, 45, 85, 0.08) 0%, transparent 50%),
@@ -1527,6 +1529,16 @@ code {
         radial-gradient(ellipse at 60% 30%, rgba(90, 200, 250, 0.04) 0%, transparent 50%);
     animation: bgFloat 20s ease-in-out infinite alternate;
     pointer-events: none;
+}
+
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 40px 24px;
+    position: relative;
+    z-index: 1;
 }
 
 @keyframes bgFloat {
