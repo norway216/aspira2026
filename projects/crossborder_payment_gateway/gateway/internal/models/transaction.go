@@ -22,6 +22,9 @@ type Transaction struct {
 	SourceAmount    int64             `json:"source_amount" db:"source_amount"`
 	TargetAmount    int64             `json:"target_amount" db:"target_amount"`
 	ExchangeRate    float64           `json:"exchange_rate" db:"exchange_rate"`
+	UsdAmount       int64             `json:"usd_amount" db:"usd_amount"`
+	SourceToUsdRate float64           `json:"source_to_usd_rate" db:"source_to_usd_rate"`
+	UsdToTargetRate float64           `json:"usd_to_target_rate" db:"usd_to_target_rate"`
 	Fee             int64             `json:"fee" db:"fee"`
 	Status          TransactionStatus `json:"status" db:"status"`
 	Description     string            `json:"description" db:"description"`

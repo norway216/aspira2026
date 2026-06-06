@@ -14,6 +14,7 @@ import (
 
 	"github.com/aspira/crossborder-payment-gateway/internal/database"
 	"github.com/aspira/crossborder-payment-gateway/internal/engine"
+	"github.com/aspira/crossborder-payment-gateway/internal/exchange"
 	"github.com/aspira/crossborder-payment-gateway/internal/models"
 	"github.com/aspira/crossborder-payment-gateway/internal/websocket"
 	"github.com/gin-gonic/gin"
@@ -21,10 +22,24 @@ import (
 )
 
 type TransactionHandler struct {
-	db        database.DB
-	engine    *engine.EngineClient
-	wsHub     *websocket.Hub
-	tpsCounter *TPSCounter
+	db          database.DB
+	engine      *engine.EngineClient
+	wsHub       *websocket.Hub
+	tpsCounter  *TPSCounter
+	rateService *exchange.RateService
+}
+
+// dbRateAdapter adapts database.DB to exchange.DBFallback interface.
+type dbRateAdapter struct {
+	db database.DB
+}
+
+func (a *dbRateAdapter) GetExchangeRate(source, target string) (*exchange.DBRate, error) {
+	rate, err := a.db.GetExchangeRate(source, target)
+	if err != nil {
+		return nil, err
+	}
+	return &exchange.DBRate{Rate: rate.Rate}, nil
 }
 
 // TPSCounter tracks transactions-per-second in memory for instant WebSocket updates.
@@ -68,8 +83,16 @@ func (t *TPSCounter) CurrentTPS() float64 {
 	return float64(sum) / float64(validSeconds)
 }
 
-func NewTransactionHandler(db database.DB, engineClient *engine.EngineClient, wsHub *websocket.Hub) *TransactionHandler {
-	return &TransactionHandler{db: db, engine: engineClient, wsHub: wsHub, tpsCounter: &TPSCounter{}}
+func NewTransactionHandler(db database.DB, engineClient *engine.EngineClient, wsHub *websocket.Hub, rateService *exchange.RateService) *TransactionHandler {
+	// Wire up DB fallback for the rate service
+	rateService.SetDBFallback(&dbRateAdapter{db: db})
+	return &TransactionHandler{
+		db:          db,
+		engine:      engineClient,
+		wsHub:       wsHub,
+		tpsCounter:  &TPSCounter{},
+		rateService: rateService,
+	}
 }
 
 func (h *TransactionHandler) CreateTransaction(c *gin.Context) {
@@ -167,18 +190,26 @@ func (h *TransactionHandler) processInternally(req models.CreateTransactionReque
 		return nil, fmt.Errorf("insufficient funds: balance=%d, needed=%d", payerAcct.Balance, totalDebit)
 	}
 
-	// Get exchange rate
-	rate, err := h.db.GetExchangeRate(req.SourceCurrency, req.TargetCurrency)
-	if err != nil {
-		if req.SourceCurrency == req.TargetCurrency {
-			rate = &models.ExchangeRate{Rate: 1.0}
-		} else {
-			return nil, fmt.Errorf("exchange rate not found: %s->%s", req.SourceCurrency, req.TargetCurrency)
+	// Two-hop conversion via USD using live rates (with DB fallback)
+	usdAmount, targetAmount, srcToUsdRate, usdToTgtRate, convErr :=
+		h.rateService.Convert(req.SourceAmount, req.Fee, req.SourceCurrency, req.TargetCurrency)
+	if convErr != nil {
+		// Ultimate fallback: direct conversion from DB
+		rate, err := h.db.GetExchangeRate(req.SourceCurrency, req.TargetCurrency)
+		if err != nil {
+			if req.SourceCurrency == req.TargetCurrency {
+				rate = &models.ExchangeRate{Rate: 1.0}
+			} else {
+				return nil, fmt.Errorf("conversion failed: %w", convErr)
+			}
 		}
+		targetAmount = int64(float64(req.SourceAmount-req.Fee) * rate.Rate)
+		usdAmount = 0 // Could not determine USD amount
+		srcToUsdRate = 0
+		usdToTgtRate = 0
+		log.Printf("[Txn] Using DB direct conversion fallback: %s→%s rate=%.4f",
+			req.SourceCurrency, req.TargetCurrency, rate.Rate)
 	}
-
-	// Calculate target amount
-	targetAmount := int64(float64(req.SourceAmount-req.Fee) * rate.Rate)
 
 	// Generate hash chain
 	txnID := uuid.New().String()
@@ -210,7 +241,10 @@ func (h *TransactionHandler) processInternally(req models.CreateTransactionReque
 		TargetCurrency:  req.TargetCurrency,
 		SourceAmount:    req.SourceAmount,
 		TargetAmount:    targetAmount,
-		ExchangeRate:    rate.Rate,
+		UsdAmount:       usdAmount,
+		SourceToUsdRate: srcToUsdRate,
+		UsdToTargetRate: usdToTgtRate,
+		ExchangeRate:    srcToUsdRate * usdToTgtRate, // effective rate
 		Fee:             req.Fee,
 		Status:          models.TxnCompleted,
 		Description:     req.Description,
@@ -240,6 +274,8 @@ func (h *TransactionHandler) getLastHash() string {
 
 func (h *TransactionHandler) buildTransaction(result engine.TransactionResult, req models.CreateTransactionRequest, merchantID, txnID string) *models.Transaction {
 	now := time.Now()
+	// Try to compute USD amount for engine transactions
+	usdAmt, _, srcToUsd, usdToTgt, _ := h.rateService.Convert(req.SourceAmount, result.Fee, req.SourceCurrency, req.TargetCurrency)
 	return &models.Transaction{
 		ID:              txnID,
 		MerchantID:      merchantID,
@@ -249,6 +285,9 @@ func (h *TransactionHandler) buildTransaction(result engine.TransactionResult, r
 		TargetCurrency:  req.TargetCurrency,
 		SourceAmount:    req.SourceAmount,
 		TargetAmount:    result.TargetAmount,
+		UsdAmount:       usdAmt,
+		SourceToUsdRate: srcToUsd,
+		UsdToTargetRate: usdToTgt,
 		ExchangeRate:    result.ExchangeRate,
 		Fee:             result.Fee,
 		Status:          models.TransactionStatus(result.Status),

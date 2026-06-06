@@ -13,6 +13,7 @@ type Config struct {
 	Engine   EngineConfig   `yaml:"engine"`
 	Auth     AuthConfig     `yaml:"auth"`
 	Redis    RedisConfig    `yaml:"redis"`
+	Exchange ExchangeConfig `yaml:"exchange"`
 }
 
 type ServerConfig struct {
@@ -45,6 +46,12 @@ type RedisConfig struct {
 	DB       int    `yaml:"db"`
 }
 
+type ExchangeConfig struct {
+	APIURL          string        `yaml:"api_url"`
+	RefreshInterval time.Duration `yaml:"refresh_interval"`
+	Enabled         bool          `yaml:"enabled"`
+}
+
 func Default() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -70,6 +77,11 @@ func Default() *Config {
 		Redis: RedisConfig{
 			Addr: "localhost:6379",
 			DB:   0,
+		},
+		Exchange: ExchangeConfig{
+			APIURL:          "https://open.er-api.com/v6/latest/USD",
+			RefreshInterval: 1 * time.Hour,
+			Enabled:         true,
 		},
 	}
 }

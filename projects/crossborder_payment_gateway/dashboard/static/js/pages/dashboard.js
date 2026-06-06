@@ -69,7 +69,7 @@ function init_dashboard() {
                 formatter: function (params) {
                     var p = params[0];
                     if (!p) return '';
-                    return p.axisValue + '<br/>交易量: <strong>' + formatCurrency(p.value || 0) + '</strong>';
+                    return p.axisValue + '<br/>交易量 (USD): <strong>' + formatCurrency(p.value || 0, 'USD') + '</strong>';
                 }
             },
             xAxis: {
@@ -260,8 +260,8 @@ function updateStatCards(data) {
 
     StatCard.update('stat-volume', {
         value: data.today_volume || data.volume || 0,
-        label: '今日交易量',
-        format: 'currency'
+        label: '今日交易量 (USD)',
+        format: 'usd'
     });
 
     var successRate = data.success_rate !== undefined ? data.success_rate : (data.rate || 0);
@@ -312,9 +312,9 @@ function updateHeroStats(data) {
 }
 
 function formatHeroVolume(val) {
-    if (val >= 100000000) return '¥' + (val / 100000000).toFixed(1) + '亿';
-    if (val >= 10000) return '¥' + (val / 10000).toFixed(1) + '万';
-    return '¥' + val.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+    if (val >= 1000000) return '$' + (val / 1000000).toFixed(2) + 'M';
+    if (val >= 1000) return '$' + (val / 1000).toFixed(1) + 'K';
+    return '$' + val.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 /* Update volume chart with real-time data from dashboard_stats */

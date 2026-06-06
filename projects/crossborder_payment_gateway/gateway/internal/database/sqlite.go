@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aspira/crossborder-payment-gateway/internal/models"
@@ -105,6 +106,9 @@ func (s *SQLiteDB) RunMigrations() error {
 			source_amount INTEGER NOT NULL,
 			target_amount INTEGER DEFAULT 0,
 			exchange_rate REAL DEFAULT 0,
+			usd_amount INTEGER DEFAULT 0,
+			source_to_usd_rate REAL DEFAULT 0,
+			usd_to_target_rate REAL DEFAULT 0,
 			fee INTEGER DEFAULT 0,
 			status TEXT NOT NULL DEFAULT 'pending',
 			description TEXT DEFAULT '',
@@ -143,10 +147,20 @@ func (s *SQLiteDB) RunMigrations() error {
 		`CREATE INDEX IF NOT EXISTS idx_accounts_merchant ON accounts(merchant_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action)`,
 		`CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at DESC)`,
+
+		// USD two-hop conversion columns (for existing databases)
+		`ALTER TABLE transactions ADD COLUMN usd_amount INTEGER DEFAULT 0`,
+		`ALTER TABLE transactions ADD COLUMN source_to_usd_rate REAL DEFAULT 0`,
+		`ALTER TABLE transactions ADD COLUMN usd_to_target_rate REAL DEFAULT 0`,
 	}
 
 	for _, m := range migrations {
 		if _, err := s.db.Exec(m); err != nil {
+			// Ignore "duplicate column" errors from ALTER TABLE on fresh DBs
+			if strings.Contains(err.Error(), "duplicate column name") ||
+				strings.Contains(err.Error(), "already exists") {
+				continue
+			}
 			return fmt.Errorf("migration error: %w\nSQL: %s", err, m)
 		}
 	}
@@ -316,10 +330,30 @@ func (s *SQLiteDB) seed() error {
 	}
 	prevHash := "0000000000000000000000000000000000000000000000000000000000000000"
 
+	// Approximate USD rates for seed data (used to estimate usd_amount)
+	seedUsdRates := map[string]float64{
+		"USD": 1.0, "CNY": 7.25, "EUR": 0.92, "JPY": 155.75,
+		"GBP": 0.79, "CHF": 0.90, "CAD": 1.37, "AUD": 1.52,
+		"NZD": 1.64, "SGD": 1.35, "HKD": 7.81,
+	}
+
 	for i, tx := range samples {
 		txnID := fmt.Sprintf("txn-sample-%03d", i+1)
-		tgtAmt := int64(float64(tx.srcAmt-tx.fee) * tx.rate)
+		netAmt := tx.srcAmt - tx.fee
+		tgtAmt := int64(float64(netAmt) * tx.rate)
 		ts := time.Now().Add(-time.Duration(tx.hoursAgo) * time.Hour)
+
+		// Calculate USD amount: Source → USD → Target (two-hop)
+		srcToUsd := 1.0 / seedUsdRates[tx.srcCurrency] // e.g., 1/7.25 = 0.1379 USD per CNY
+		usdAmt := int64(float64(netAmt) * srcToUsd)
+		usdToTgt := seedUsdRates[tx.tgtCurrency] // e.g., USD→EUR = 0.92
+		if tx.srcCurrency == "USD" {
+			srcToUsd = 1.0
+			usdAmt = netAmt
+		}
+		if tx.tgtCurrency == "USD" {
+			usdToTgt = 1.0
+		}
 
 		hashInput := fmt.Sprintf("%s|%s|%d|%s|%d|%d", prevHash, txnID, tx.srcAmt, tx.tgtCurrency, tgtAmt, ts.UnixNano())
 		hash := sha256.Sum256([]byte(hashInput))
@@ -328,11 +362,13 @@ func (s *SQLiteDB) seed() error {
 
 		if _, err := s.db.Exec(
 			`INSERT INTO transactions (id, merchant_id, payer_account_id, payee_account_id,
-			 source_currency, target_currency, source_amount, target_amount, exchange_rate, fee,
+			 source_currency, target_currency, source_amount, target_amount, exchange_rate,
+			 usd_amount, source_to_usd_rate, usd_to_target_rate, fee,
 			 status, description, reference_id, hash_chain_prev, hash_chain_curr,
-			 created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			 created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 			txnID, "merchant-001", tx.payerAcct, tx.payeeAcct,
-			tx.srcCurrency, tx.tgtCurrency, tx.srcAmt, tgtAmt, tx.rate, tx.fee,
+			tx.srcCurrency, tx.tgtCurrency, tx.srcAmt, tgtAmt, tx.rate,
+			usdAmt, srcToUsd, usdToTgt, tx.fee,
 			string(tx.status), tx.desc, fmt.Sprintf("REF-%03d", i+1),
 			prevHashCopy, currHash,
 			ts, ts,
@@ -360,12 +396,14 @@ func (s *SQLiteDB) seed() error {
 func (s *SQLiteDB) CreateTransaction(txn *models.Transaction) error {
 	_, err := s.db.Exec(
 		`INSERT INTO transactions (id, merchant_id, payer_account_id, payee_account_id,
-		 source_currency, target_currency, source_amount, target_amount, exchange_rate, fee,
+		 source_currency, target_currency, source_amount, target_amount, exchange_rate,
+		 usd_amount, source_to_usd_rate, usd_to_target_rate, fee,
 		 status, description, reference_id, callback_url, hash_chain_prev, hash_chain_curr,
-		 created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		 created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		txn.ID, txn.MerchantID, txn.PayerAccountID, txn.PayeeAccountID,
 		txn.SourceCurrency, txn.TargetCurrency, txn.SourceAmount, txn.TargetAmount,
-		txn.ExchangeRate, txn.Fee, string(txn.Status), txn.Description, txn.ReferenceID,
+		txn.ExchangeRate, txn.UsdAmount, txn.SourceToUsdRate, txn.UsdToTargetRate,
+		txn.Fee, string(txn.Status), txn.Description, txn.ReferenceID,
 		txn.CallbackURL, txn.HashChainPrev, txn.HashChainCurr,
 		txn.CreatedAt, txn.UpdatedAt,
 	)
@@ -377,12 +415,14 @@ func (s *SQLiteDB) GetTransaction(id string) (*models.Transaction, error) {
 	var status string
 	err := s.db.QueryRow(
 		`SELECT id, merchant_id, payer_account_id, payee_account_id,
-		 source_currency, target_currency, source_amount, target_amount, exchange_rate, fee,
+		 source_currency, target_currency, source_amount, target_amount, exchange_rate,
+		 usd_amount, source_to_usd_rate, usd_to_target_rate, fee,
 		 status, description, reference_id, callback_url, hash_chain_prev, hash_chain_curr,
 		 created_at, updated_at FROM transactions WHERE id = ?`, id,
 	).Scan(&txn.ID, &txn.MerchantID, &txn.PayerAccountID, &txn.PayeeAccountID,
 		&txn.SourceCurrency, &txn.TargetCurrency, &txn.SourceAmount, &txn.TargetAmount,
-		&txn.ExchangeRate, &txn.Fee, &status, &txn.Description, &txn.ReferenceID,
+		&txn.ExchangeRate, &txn.UsdAmount, &txn.SourceToUsdRate, &txn.UsdToTargetRate,
+		&txn.Fee, &status, &txn.Description, &txn.ReferenceID,
 		&txn.CallbackURL, &txn.HashChainPrev, &txn.HashChainCurr,
 		&txn.CreatedAt, &txn.UpdatedAt)
 	if err != nil {
@@ -433,7 +473,8 @@ func (s *SQLiteDB) ListTransactions(query TransactionQuery) ([]models.Transactio
 
 	rows, err := s.db.Query(
 		`SELECT id, merchant_id, payer_account_id, payee_account_id,
-		 source_currency, target_currency, source_amount, target_amount, exchange_rate, fee,
+		 source_currency, target_currency, source_amount, target_amount, exchange_rate,
+		 usd_amount, source_to_usd_rate, usd_to_target_rate, fee,
 		 status, description, reference_id, callback_url, hash_chain_prev, hash_chain_curr,
 		 created_at, updated_at FROM transactions `+where+` ORDER BY created_at DESC LIMIT ? OFFSET ?`,
 		append(args, query.PageSize, offset)...,
@@ -449,7 +490,8 @@ func (s *SQLiteDB) ListTransactions(query TransactionQuery) ([]models.Transactio
 		var status string
 		if err := rows.Scan(&txn.ID, &txn.MerchantID, &txn.PayerAccountID, &txn.PayeeAccountID,
 			&txn.SourceCurrency, &txn.TargetCurrency, &txn.SourceAmount, &txn.TargetAmount,
-			&txn.ExchangeRate, &txn.Fee, &status, &txn.Description, &txn.ReferenceID,
+			&txn.ExchangeRate, &txn.UsdAmount, &txn.SourceToUsdRate, &txn.UsdToTargetRate,
+			&txn.Fee, &status, &txn.Description, &txn.ReferenceID,
 			&txn.CallbackURL, &txn.HashChainPrev, &txn.HashChainCurr,
 			&txn.CreatedAt, &txn.UpdatedAt); err != nil {
 			return nil, 0, err
@@ -798,7 +840,7 @@ func (s *SQLiteDB) GetDashboardStats() (*models.DashboardStats, error) {
 
 	// Today's stats — use string prefix matching against created_at
 	s.db.QueryRow(
-		"SELECT COUNT(*), COALESCE(SUM(target_amount), 0) FROM transactions WHERE created_at >= ? AND created_at < ?",
+		"SELECT COUNT(*), COALESCE(SUM(usd_amount), 0) FROM transactions WHERE created_at >= ? AND created_at < ?",
 		todayStart, tomorrowStart,
 	).Scan(&stats.TodayCount, &stats.TodayVolume)
 
