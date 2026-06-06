@@ -1,98 +1,104 @@
 #!/bin/bash
+# ============================================================
+#  Aspira Pay — Multi-Currency Continuous Trader (Go)
+#  8 workers, 8 currencies, 10,000,000 balance each
+# ============================================================
 set -e
-
-# ============================================================
-#  Aspira Payment Gateway — Benchmark Client Runner
-# ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CLIENT_DIR="$SCRIPT_DIR/client"
 
-# 颜色
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m'
 
+# Defaults
+GATEWAY="${GATEWAY_URL:-http://localhost:8080}"
+BATCH_SIZE="${BATCH_SIZE:-3}"
+BATCH_PAUSE="${BATCH_PAUSE:-800ms}"
+REPORT_EVERY="${REPORT_EVERY:-10s}"
+BALANCE="${BALANCE:-10000000}"
+
 banner() {
     echo -e "${CYAN}"
     echo "╔══════════════════════════════════════════════════════════╗"
-    echo "║     Aspira Payment Gateway — Benchmark Client           ║"
+    echo "║   Aspira Pay — Multi-Currency Trader (8 Workers)        ║"
     echo "╚══════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 }
 
 usage() {
-    echo "Usage: $0 [preset|options...]"
+    echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Presets:"
-    echo "  quick       Quick smoke test (5 workers, 10s, unlimited rate)"
-    echo "  standard    Standard benchmark (20 workers, 500 TPS, 30s)"
-    echo "  stress      Stress test (100 workers, unlimited rate, 60s)"
-    echo "  mixed       Mixed workload (20 workers, 100 TPS, 30s)"
-    echo "  query       Read-only query test (10 workers, unlimited, 10s)"
-    echo ""
-    echo "Custom options (forwarded to benchmark client):"
-    echo "  --mode=MODE          payment | query | mixed (default: payment)"
-    echo "  --concurrency=N      Number of workers (default: 20)"
-    echo "  --rate=N             Target TPS, 0=unlimited (default: 0)"
-    echo "  --duration=D         Test duration (default: 30s)"
-    echo "  --ramp-up=D          Ramp-up time (default: 5s)"
-    echo "  --target=URL         Gateway URL (default: http://localhost:8080)"
-    echo "  --username=USER      Login username (default: admin)"
-    echo "  --password=PASS      Login password (default: admin123)"
-    echo "  --report=FILE        Save JSON report to file"
+    echo "Options:"
+    echo "  --target=URL       Gateway URL (default: http://localhost:8080)"
+    echo "  --batch=N          Txns per batch per worker (default: 5)"
+    echo "  --pause=D          Pause between batches (default: 1s)"
+    echo "  --report=D         Stats report interval (default: 10s)"
+    echo "  --balance=N        Initial balance per account (default: 10000000)"
+    echo "  --username=USER    Login username (default: admin)"
+    echo "  --password=PASS    Login password (default: admin123)"
     echo ""
     echo "Examples:"
-    echo "  $0 quick"
-    echo "  $0 standard"
-    echo "  $0 --mode=payment --concurrency=50 --rate=1000 --duration=60s"
-    echo "  $0 --mode=mixed --concurrency=20 --duration=30s --report=results.json"
+    echo "  $0                                    # Default"
+    echo "  $0 --batch=10 --pause=500ms           # High throughput"
+    echo "  $0 --batch=20 --pause=2s --target=... # Large batches"
+    echo ""
+    echo "Workers (8 currencies):"
+    echo "  USD acct-001   HKD acct-013   SGD acct-012   JPY acct-006"
+    echo "  AUD acct-010   EUR acct-005   CNY acct-002   CAD acct-009"
+    echo ""
+    echo "Each account holds $BALANCE in native currency."
 }
 
-log_info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
-log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
+# Parse custom args
+for arg in "$@"; do
+    case "$arg" in
+        --target=*)    GATEWAY="${arg#*=}" ;;
+        --batch=*)     BATCH_SIZE="${arg#*=}" ;;
+        --pause=*)     BATCH_PAUSE="${arg#*=}" ;;
+        --report=*)    REPORT_EVERY="${arg#*=}" ;;
+        --balance=*)   BALANCE="${arg#*=}" ;;
+        --username=*)  LOGIN_USER="${arg#*=}" ;;
+        --password=*)  LOGIN_PASS="${arg#*=}" ;;
+        -h|--help)     usage; exit 0 ;;
+    esac
+done
 
 # -----------------------------------------------------------
 # Build
 # -----------------------------------------------------------
 build() {
-    log_info "Building benchmark client..."
+    echo -e "${YELLOW}[BUILD]${NC} Building Go client..."
     cd "$CLIENT_DIR"
-
     export GOPROXY="${GOPROXY:-https://goproxy.cn,direct}"
-    export GONOSUMCHECK='*'
-
     go mod tidy 2>&1 | tail -1
     go build -ldflags="-s -w" -o client . 2>&1
-
     if [ -f client ]; then
-        local size=$(du -h client | cut -f1)
-        log_info "Build successful (binary: $size)"
+        local size; size=$(du -h client | cut -f1)
+        echo -e "  ${GREEN}✓${NC} Build OK ($size)"
     else
-        echo -e "${RED}[ERROR]${NC} Build failed"
+        echo -e "  ${RED}✗${NC} Build failed"
         exit 1
     fi
 }
 
 # -----------------------------------------------------------
-# Check if gateway is reachable
+# Check gateway reachable
 # -----------------------------------------------------------
 check_gateway() {
-    local target="${1:-http://localhost:8080}"
-    log_info "Checking gateway at $target..."
-
-    if curl -s -o /dev/null -w "%{http_code}" --connect-timeout 3 "$target/api/v1/auth/login" \
-        -X POST -H "Content-Type: application/json" \
-        -d '{"username":"admin","password":"admin123"}' 2>/dev/null | grep -q "200"; then
-        log_info "Gateway is reachable"
-        return 0
+    echo -ne "${YELLOW}[CHECK]${NC} Gateway $GATEWAY ... "
+    if curl -s -o /dev/null --connect-timeout 3 \
+        -X POST "$GATEWAY/api/v1/auth/login" \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin","password":"admin123"}' 2>/dev/null; then
+        echo -e "${GREEN}OK${NC}"
     else
-        log_warn "Gateway is not reachable at $target"
-        echo "  Make sure the gateway is running:"
-        echo "    cd $(dirname "$SCRIPT_DIR") && ./run.sh start"
-        return 1
+        echo -e "${RED}DOWN${NC}"
+        echo "  Start: cd gateway && ./gateway"
+        exit 1
     fi
 }
 
@@ -102,72 +108,23 @@ check_gateway() {
 main() {
     banner
 
+    [ ! -f "$CLIENT_DIR/client" ] && build
+    check_gateway
+
+    echo ""
+    echo -e "${GREEN}[START]${NC} 8 workers | batch=$BATCH_SIZE | pause=$BATCH_PAUSE"
+    echo "  USD HKD SGD JPY AUD EUR CNY CAD"
+    echo ""
+
     cd "$CLIENT_DIR"
-
-    # Build if needed
-    if [ ! -f "$CLIENT_DIR/client" ]; then
-        build
-    fi
-
-    local cmd="${1:-help}"
-    local extra_args=""
-
-    case "$cmd" in
-        quick)
-            log_info "Preset: Quick smoke test"
-            extra_args="--mode=payment --concurrency=5 --rate=0 --duration=10s --ramp-up=2s"
-            ;;
-        standard)
-            log_info "Preset: Standard benchmark"
-            extra_args="--mode=payment --concurrency=20 --rate=500 --duration=30s"
-            ;;
-        stress)
-            log_info "Preset: Stress test"
-            extra_args="--mode=payment --concurrency=100 --rate=0 --duration=60s --ramp-up=10s"
-            ;;
-        mixed)
-            log_info "Preset: Mixed workload"
-            extra_args="--mode=mixed --concurrency=20 --rate=100 --duration=30s"
-            ;;
-        query)
-            log_info "Preset: Query-only test"
-            extra_args="--mode=query --concurrency=10 --rate=0 --duration=10s"
-            ;;
-        help|--help|-h)
-            usage
-            exit 0
-            ;;
-        --*)
-            # Custom options forwarded directly
-            extra_args="$*"
-            ;;
-        *)
-            log_info "Running with arguments: $*"
-            extra_args="$*"
-            ;;
-    esac
-
-    # Check gateway unless user specified custom target
-    local target_flag=$(echo "$extra_args" | grep -o '\-\-target=[^ ]*' || true)
-    if [ -z "$target_flag" ]; then
-        check_gateway "http://localhost:8080" || true
-    fi
-
-    echo ""
-    log_info "Starting benchmark..."
-    echo ""
-
-    # Run the client
-    ./client $extra_args
-
-    exit_code=$?
-
-    echo ""
-    if [ $exit_code -eq 0 ]; then
-        log_info "Benchmark completed successfully"
-    else
-        log_warn "Benchmark exited with code $exit_code"
-    fi
+    exec ./client \
+        --target="$GATEWAY" \
+        --batch="$BATCH_SIZE" \
+        --pause="$BATCH_PAUSE" \
+        --balance="$BALANCE" \
+        --report="$REPORT_EVERY" \
+        --username="${LOGIN_USER:-admin}" \
+        --password="${LOGIN_PASS:-admin123}"
 }
 
 main "$@"
