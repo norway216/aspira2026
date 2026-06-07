@@ -43,10 +43,10 @@ func (s *FXService) GetQuote(req fx.QuoteRequest) (*fx.QuoteResponse, error) {
 	targetRat := new(big.Rat).Mul(sourceRat, rateRat)
 
 	// Truncate to integer (smallest currency unit)
-	targetAmount := new(big.Int)
-	targetRat.Num(targetAmount) // Get numerator
+	// big.Rat.Num() returns the numerator (no arguments), Denom() returns denominator
+	num := targetRat.Num()
 	denom := targetRat.Denom()
-	targetAmount.Div(targetAmount, denom) // Integer division (floor)
+	targetAmount := new(big.Int).Div(num, denom) // Integer division (floor)
 
 	// Calculate fee
 	feeBps := fx.FeeBasisPoints(req.SourceCurrency, req.TargetCurrency)
@@ -98,10 +98,9 @@ func CalculateTargetAmount(sourceAmount int64, rateStr string) (int64, error) {
 	sourceRat := new(big.Rat).SetInt64(sourceAmount)
 	targetRat := new(big.Rat).Mul(sourceRat, rateRat)
 
-	targetAmount := new(big.Int)
-	targetRat.Num(targetAmount)
+	num := targetRat.Num()
 	denom := targetRat.Denom()
-	targetAmount.Div(targetAmount, denom)
+	targetAmount := new(big.Int).Div(num, denom)
 
 	return targetAmount.Int64(), nil
 }

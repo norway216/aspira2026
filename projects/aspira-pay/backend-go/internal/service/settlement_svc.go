@@ -195,7 +195,7 @@ func (s *SettlementService) CloseSettlementBatch(batchID string) error {
 		return err
 	}
 
-	if batch.Status != string(settlement.BatchOpen) {
+	if batch.Status != settlement.BatchOpen {
 		return fmt.Errorf("batch is not open: %s", batch.Status)
 	}
 

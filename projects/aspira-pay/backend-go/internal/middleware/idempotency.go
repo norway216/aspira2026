@@ -3,7 +3,6 @@ package middleware
 import (
 	"bytes"
 	"io"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 

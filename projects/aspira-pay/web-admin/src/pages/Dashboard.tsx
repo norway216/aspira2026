@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react'
-import { api } from '../api/client'
+import { api, ensureAuth } from '../api/client'
 import StatsCard from '../components/StatsCard'
 
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null)
   const [error, setError] = useState('')
+  const [authChecked, setAuthChecked] = useState(false)
 
   useEffect(() => {
-    api.getDashboard()
-      .then(setStats)
-      .catch(err => setError(err.message))
+    async function init() {
+      try {
+        // Auto-login for Sandbox
+        await ensureAuth()
+        setAuthChecked(true)
+        // Now fetch dashboard data
+        const data = await api.getDashboard()
+        setStats(data)
+      } catch (err: any) {
+        setError(err.message)
+      }
+    }
+    init()
   }, [])
 
   if (error) {
@@ -17,6 +28,17 @@ export default function Dashboard() {
       <div className="bg-red-900/30 border border-red-800 rounded-lg p-4 text-red-400">
         Cannot connect to API: {error}
         <p className="text-sm mt-2">Make sure the API server is running on port 8080.</p>
+      </div>
+    )
+  }
+
+  if (!authChecked || !stats) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500 text-lg">
+          <span className="inline-block animate-spin mr-3">⟳</span>
+          Connecting to Aspira Pay V2...
+        </div>
       </div>
     )
   }
