@@ -3,6 +3,7 @@
 // Architecture doc §4.7
 
 #include "engine/Engine.h"
+#include <cstdio>
 #include <iostream>
 #include <chrono>
 #include <openssl/sha.h>
@@ -17,7 +18,7 @@ Engine::~Engine() {
 }
 
 bool Engine::init(const std::string& wal_path) {
-    wal_ = WAL(wal_path);
+    wal_ = std::make_unique<WAL>(wal_path);
     std::cout << "[Engine] Initialized with WAL: " << wal_path << std::endl;
     return true;
 }
@@ -32,7 +33,9 @@ void Engine::stop() {
     if (worker_thread_ && worker_thread_->joinable()) {
         worker_thread_->join();
     }
-    wal_.sync();
+    if (wal_) {
+        wal_->sync();
+    }
 }
 
 bool Engine::submit(const PaymentCommand& cmd) {
@@ -78,13 +81,15 @@ void Engine::run_loop() {
         // Periodic WAL sync (every ~100ms if there were commands)
         static auto last_sync = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_sync).count() > 100) {
-            wal_.sync();
+        if (wal_ && std::chrono::duration_cast<std::chrono::milliseconds>(now - last_sync).count() > 100) {
+            wal_->sync();
             last_sync = now;
         }
     }
 
-    wal_.sync();
+    if (wal_) {
+        wal_->sync();
+    }
     std::cout << "[Engine] Core loop stopped" << std::endl;
 }
 
@@ -108,7 +113,7 @@ EngineResult Engine::process_command(const PaymentCommand& cmd) {
 
 EngineResult Engine::handle_freeze(const PaymentCommand& cmd) {
     // Write to WAL first (WAL-before-action)
-    wal_.log_command(cmd);
+    if (wal_) wal_->log_command(cmd);
 
     int64_t total_required = cmd.source_amount + cmd.fee_amount;
 
@@ -122,7 +127,7 @@ EngineResult Engine::handle_freeze(const PaymentCommand& cmd) {
 }
 
 EngineResult Engine::handle_execute(const PaymentCommand& cmd) {
-    wal_.log_command(cmd);
+    if (wal_) wal_->log_command(cmd);
 
     int64_t total_required = cmd.source_amount + cmd.fee_amount;
 
@@ -144,7 +149,7 @@ EngineResult Engine::handle_execute(const PaymentCommand& cmd) {
 }
 
 EngineResult Engine::handle_release(const PaymentCommand& cmd) {
-    wal_.log_command(cmd);
+    if (wal_) wal_->log_command(cmd);
 
     int64_t total_required = cmd.source_amount + cmd.fee_amount;
 
@@ -158,12 +163,11 @@ EngineResult Engine::handle_release(const PaymentCommand& cmd) {
 }
 
 EngineResult Engine::handle_refund(const PaymentCommand& cmd) {
-    wal_.log_command(cmd);
+    if (wal_) wal_->log_command(cmd);
 
     // Credit back to sender (source amount + fee)
     ledger_.credit(cmd.from_account, cmd.source_amount + cmd.fee_amount);
 
-    // Debit receiver (reverse the target amount credit)
     // Note: In production, this would require sufficient receiver balance
     // For Sandbox, we allow the receiver to go negative
 
@@ -195,7 +199,7 @@ void Engine::emit_event(const PaymentCommand& cmd, const std::string& event_type
     event.event_id = std::string("evt_") + std::string(hex_hash, 16);
 
     // Log to WAL
-    wal_.log_event(event);
+    if (wal_) wal_->log_event(event);
 
     // Publish to message queue
     publisher_.publish(event);
