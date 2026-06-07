@@ -67,16 +67,23 @@ type LedgerSummary struct {
 	Entries      []Entry `json:"entries"`
 }
 
-// CheckBalance verifies that total debits equal total credits.
+// CheckBalance verifies that total debits equal total credits per currency.
+// Cross-border payments involve different currencies, so balance must be checked
+// within each currency separately.
 func CheckBalance(entries []Entry) bool {
-	var totalDebit, totalCredit int64
+	balances := make(map[string]int64) // currency -> net (debit - credit)
 	for _, e := range entries {
 		switch e.Direction {
 		case DirectionDebit:
-			totalDebit += e.Amount
+			balances[e.Currency] += e.Amount
 		case DirectionCredit:
-			totalCredit += e.Amount
+			balances[e.Currency] -= e.Amount
 		}
 	}
-	return totalDebit == totalCredit
+	for _, net := range balances {
+		if net != 0 {
+			return false
+		}
+	}
+	return true
 }

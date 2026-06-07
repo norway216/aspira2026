@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/aspira/aspira-pay/internal/domain/fx"
@@ -259,7 +260,7 @@ func (s *PaymentService) executeEngineOp(paymentID string) error {
 	}
 
 	// Credit fee to platform
-	feeAccountID := "sys_fee_income_" + order.SourceCurrency
+	feeAccountID := "sys_fee_income_" + strings.ToLower(order.SourceCurrency)
 	if err := s.db.CreditAccount(feeAccountID, order.FeeAmount); err != nil {
 		return fmt.Errorf("credit fee failed: %w", err)
 	}
@@ -314,7 +315,7 @@ func (s *PaymentService) RefundPayment(paymentID string) error {
 	// Reverse the transaction
 	senderAccount, _ := s.db.GetAccountByUserAndCurrency(order.SenderUserID, order.SourceCurrency)
 	receiverAccount, _ := s.db.GetAccountByUserAndCurrency(order.ReceiverUserID, order.TargetCurrency)
-	feeAccountID := "sys_fee_income_" + order.SourceCurrency
+	feeAccountID := "sys_fee_income_" + strings.ToLower(order.SourceCurrency)
 
 	if senderAccount != nil {
 		// Refund source amount + fee to sender
