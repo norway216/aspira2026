@@ -4,6 +4,7 @@
 
 #include "engine/Ledger.h"
 #include <iostream>
+#include <mutex>
 
 namespace aspira {
 namespace engine {

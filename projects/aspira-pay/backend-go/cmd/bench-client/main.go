@@ -704,28 +704,38 @@ func main() {
 
 		users, _ = createUserPool(*userCount, client, adminToken)
 	} else {
-		// Trade mode: create a pool of test users or use fixed ones
-		fmt.Println("  Setting up test user pool...")
+		// Trade/burst mode: login as admin and use their real user_id (has KYC + balance)
+		fmt.Println("  Authenticating...")
 		authToken, err := client.Login("admin", "admin123")
 		if err != nil {
-			// Try registering
 			client.Register("admin", "admin@aspira.io", "admin123")
 			authToken, _ = client.Login("admin", "admin123")
 		}
 		client.SetToken(authToken)
 
-		// Create synthetic users (they'll fail gracefully if already exist)
-		users = make([]SimulatedUser, *userCount)
-		if *userCount > 100 {
-			*userCount = 100 // Cap for sanity
+		adminID, err := client.GetMe()
+		if err != nil || adminID == "" {
+			fmt.Printf("  %sCannot authenticate. Is the API running?%s\n", colorRed, colorReset)
+			os.Exit(1)
 		}
-		for i := 0; i < *userCount; i++ {
-			users[i] = SimulatedUser{
-				Username: fmt.Sprintf("trader_%d", i),
-				UserID:   fmt.Sprintf("u_trader_%d", i),
+		fmt.Printf("  Using admin: %s\n", adminID)
+
+		// All workers use admin as both sender and receiver.
+		// Admin already has KYC approved + account balances.
+		users = []SimulatedUser{{
+			Username: "admin",
+			UserID:   adminID,
+			Token:    authToken,
+		}}
+		// Duplicate admin for the pool so workers can pick different "receivers"
+		for i := 1; i < *userCount && i < 20; i++ {
+			users = append(users, SimulatedUser{
+				Username: fmt.Sprintf("admin_%d", i),
+				UserID:   adminID,
 				Token:    authToken,
-			}
+			})
 		}
+		*userCount = len(users)
 	}
 	fmt.Printf("  User pool: %d users ready\n", len(users))
 

@@ -35,6 +35,7 @@ struct PaymentCommand {
     uint64_t    sequence_id;
     std::string request_id;
     std::string payment_id;
+    CommandType command_type = CommandType::EXECUTE_PAYMENT;
     std::string from_account;
     std::string to_account;
     std::string source_currency;

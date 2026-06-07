@@ -24,7 +24,7 @@ func NewKYCService(db *repository.DB) *KYCService {
 // SubmitKYC submits a KYC profile for review.
 func (s *KYCService) SubmitKYC(userID string, req kyc.SubmitRequest) (*kyc.Profile, error) {
 	// Check user exists
-	u, err := s.db.GetUserByID(userID)
+	_, err := s.db.GetUserByID(userID)
 	if err != nil {
 		return nil, pkgerrors.NotFound("user not found")
 	}

@@ -10,13 +10,21 @@ import (
 
 // CreateKYCProfile inserts a new KYC profile.
 func (db *DB) CreateKYCProfile(p *kyc.Profile) error {
+	// Handle empty date_of_birth — PostgreSQL doesn't accept empty string as DATE
+	var dob interface{}
+	if p.DateOfBirth == "" {
+		dob = nil
+	} else {
+		dob = p.DateOfBirth
+	}
+
 	query := `
 		INSERT INTO kyc_profiles (user_id, full_name, nationality, date_of_birth, document_type,
 			document_number_hash, document_hash, address_hash, kyc_status, risk_level)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, submitted_at, created_at, updated_at`
 	return db.QueryRow(query,
-		p.UserID, p.FullName, p.Nationality, p.DateOfBirth, p.DocumentType,
+		p.UserID, p.FullName, p.Nationality, dob, p.DocumentType,
 		p.DocumentNumberHash, p.DocumentHash, p.AddressHash,
 		p.KYCStatus, p.RiskLevel,
 	).Scan(&p.ID, &p.SubmittedAt, &p.CreatedAt, &p.UpdatedAt)
@@ -25,17 +33,21 @@ func (db *DB) CreateKYCProfile(p *kyc.Profile) error {
 // GetKYCProfile retrieves a KYC profile by user_id.
 func (db *DB) GetKYCProfile(userID string) (*kyc.Profile, error) {
 	p := &kyc.Profile{}
+	var dob sql.NullString
 	query := `SELECT id, user_id, full_name, nationality, date_of_birth, document_type,
 		document_number_hash, document_hash, address_hash, kyc_status, risk_level,
 		COALESCE(rejection_reason, ''), COALESCE(reviewed_by, ''), reviewed_at, submitted_at, created_at, updated_at
 		FROM kyc_profiles WHERE user_id = $1`
 	err := db.QueryRow(query, userID).Scan(
-		&p.ID, &p.UserID, &p.FullName, &p.Nationality, &p.DateOfBirth, &p.DocumentType,
+		&p.ID, &p.UserID, &p.FullName, &p.Nationality, &dob, &p.DocumentType,
 		&p.DocumentNumberHash, &p.DocumentHash, &p.AddressHash,
 		&p.KYCStatus, &p.RiskLevel,
 		&p.RejectionReason, &p.ReviewedBy, &p.ReviewedAt,
 		&p.SubmittedAt, &p.CreatedAt, &p.UpdatedAt,
 	)
+	if dob.Valid {
+		p.DateOfBirth = dob.String
+	}
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("KYC profile not found for user: %s", userID)
 	}
@@ -93,14 +105,18 @@ func (db *DB) ListKYCPending(page, pageSize int) ([]kyc.Profile, int64, error) {
 	var profiles []kyc.Profile
 	for rows.Next() {
 		var p kyc.Profile
+		var dob sql.NullString
 		if err := rows.Scan(
-			&p.ID, &p.UserID, &p.FullName, &p.Nationality, &p.DateOfBirth, &p.DocumentType,
+			&p.ID, &p.UserID, &p.FullName, &p.Nationality, &dob, &p.DocumentType,
 			&p.DocumentNumberHash, &p.DocumentHash, &p.AddressHash,
 			&p.KYCStatus, &p.RiskLevel,
 			&p.RejectionReason, &p.ReviewedBy, &p.ReviewedAt,
 			&p.SubmittedAt, &p.CreatedAt, &p.UpdatedAt,
 		); err != nil {
 			return nil, 0, err
+		}
+		if dob.Valid {
+			p.DateOfBirth = dob.String
 		}
 		profiles = append(profiles, p)
 	}

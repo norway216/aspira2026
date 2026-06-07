@@ -544,29 +544,20 @@ start_web() {
         return 0
     fi
 
-    # Check if dist exists for production mode
-    if [ -d "$WEB_ADMIN_DIR/dist" ]; then
-        log_info "Starting Web Admin (production mode) on port $WEB_PORT..."
+    # Always use Vite dev server in Sandbox — it has the API proxy configured.
+    # The production build (dist/) is for Docker/nginx deployment only.
+    if [ -f "$WEB_ADMIN_DIR/package.json" ] && command -v npm &> /dev/null; then
+        log_info "Starting Web Admin (Vite dev + proxy) on port $WEB_PORT..."
         cd "$WEB_ADMIN_DIR"
-        nohup npx serve -s dist -l $WEB_PORT > "$WEB_LOG" 2>&1 &
+        nohup npm run dev -- --port $WEB_PORT --host > "$WEB_LOG" 2>&1 &
         local pid=$!
         echo $pid > "$WEB_PID_FILE"
+        sleep 2
         log_ok "Web Admin started (PID: $pid, http://localhost:$WEB_PORT)"
         return 0
     fi
 
-    # Fall back to dev mode
-    if [ -f "$WEB_ADMIN_DIR/package.json" ] && command -v npm &> /dev/null; then
-        log_info "Starting Web Admin (dev mode) on port $WEB_PORT..."
-        cd "$WEB_ADMIN_DIR"
-        nohup npm run dev -- --port $WEB_PORT > "$WEB_LOG" 2>&1 &
-        local pid=$!
-        echo $pid > "$WEB_PID_FILE"
-        log_ok "Web Admin dev server started (PID: $pid, http://localhost:$WEB_PORT)"
-        return 0
-    fi
-
-    log_warn "Web Admin not available"
+    log_warn "Web Admin not available — install Node.js and run: npm install && npm run dev"
     return 0
 }
 

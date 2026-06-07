@@ -1,0 +1,31 @@
+# ─── Binary & Build ──────────────────
+backend-go/aspira-api
+engine-cpp/build/
+web-admin/dist/
+
+# ─── Dependencies ────────────────────
+web-admin/node_modules/
+
+# ─── Runtime ─────────────────────────
+logs/
+*.log
+.pids/
+
+# ─── IDE ────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ─── OS ─────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ─── Engine ─────────────────────────
+engine-cpp/build/
+engine-cpp/*.wal
+
+# ─── Database ───────────────────────
+*.db
+*.db-shm
+*.db-wal

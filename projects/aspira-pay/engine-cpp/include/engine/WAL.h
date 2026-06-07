@@ -6,6 +6,7 @@
 
 #include "Types.h"
 #include <string>
+#include <vector>
 #include <fstream>
 #include <mutex>
 

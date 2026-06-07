@@ -31,7 +31,7 @@ func SetupRouter(cfg *RouterConfig) *gin.Engine {
 	r.Use(middleware.CORS())
 	r.Use(middleware.AuditLog())
 	r.Use(middleware.Recovery())
-	r.Use(middleware.RateLimit(100, 60))
+	r.Use(middleware.RateLimit(100000, 60)) // High limit for Sandbox benchmarking
 
 	// Health check
 	r.GET("/health", func(c *gin.Context) {

@@ -64,7 +64,7 @@ private:
 
     Ledger ledger_;
     CommandQueue queue_;
-    WAL wal_{"engine.wal"};
+    std::unique_ptr<WAL> wal_;
     Publisher publisher_;
     std::unique_ptr<std::thread> worker_thread_;
     std::atomic<bool> running_{false};

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/aspira/aspira-pay/internal/domain/payment"
 	"github.com/aspira/aspira-pay/internal/service"
 )
 
@@ -27,7 +28,7 @@ func NewAdminHandler(paySvc *service.PaymentService, userSvc *service.UserServic
 // GetDashboard returns admin dashboard stats.
 func (h *AdminHandler) GetDashboard(c *gin.Context) {
 	// Aggregate stats for dashboard
-	_, totalPayments, _ := h.paymentSvc.ListPayments(nil)
+	_, totalPayments, _ := h.paymentSvc.ListPayments(payment.ListQuery{})
 	_, totalUsers, _ := h.userSvc.ListUsers(1, 1)
 	_, totalBatches, _ := h.settlementSvc.ListBatches(1, 1)
 

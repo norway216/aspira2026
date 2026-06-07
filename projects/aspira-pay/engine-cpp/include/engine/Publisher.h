@@ -9,6 +9,7 @@
 #include <functional>
 #include <vector>
 #include <mutex>
+#include <atomic>
 
 namespace aspira {
 namespace engine {
