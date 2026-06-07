@@ -1,3 +1,0 @@
-/home/sa/Lab/Programming/aspira2026/dl_basic/yolo/yolo_cpp/build/CMakeFiles/rebuild_cache.dir
-/home/sa/Lab/Programming/aspira2026/dl_basic/yolo/yolo_cpp/build/CMakeFiles/edit_cache.dir
-/home/sa/Lab/Programming/aspira2026/dl_basic/yolo/yolo_cpp/build/CMakeFiles/yolo_seg_inference.dir
