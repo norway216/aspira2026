@@ -1,9 +1,95 @@
+# ═══════════════════════════════════════════════
+# Aspira2026 — Global .gitignore
+# ═══════════════════════════════════════════════
 
-# Local database files
+# ─── Compiled Binaries & Executables ────────
+*.exe
+*.out
+*.app
+*.bin
+*.elf
+*.hex
+*.dll
+*.so
+*.dylib
+*.a
+*.la
+
+# ─── Compile Intermediate Files ─────────────
+*.o
+*.obj
+*.mod.o
+*.mod.c
+*.ko
+*.symvers
+*.order
+*.mod
+Module.symvers
+modules.order
+.module-common.o
+
+# ─── Build Output Directories ───────────────
+build/
+dist/
+target/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# ─── Dependencies ───────────────────────────
+node_modules/
+vendor/
+.pnpm-store/
+
+# ─── IDE & Editor ───────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ─── OS Files ───────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Runtime & Logs ─────────────────────────
+*.log
+.pids/
+*.pid
+
+# Project log directories (NOT source code directories named "logs")
+projects/aspira-pay/logs/
+projects/traffic_lab_proxy/data/logs/
+
+# ─── Database Files ─────────────────────────
 *.db
 *.sqlite
 *.sqlite3
-projects/crossborder_payment_gateway/gateway/data/*.db
-!projects/crossborder_payment_gateway/gateway/data/.gitkeep
-projects/aspira-pay/logs/
-*.log
+*.db-shm
+*.db-wal
+
+# ─── Project-Specific Exceptions ────────────
+# Allow gitkeep files in data directories
+!data/.gitkeep
+!**/data/.gitkeep
+
+# ─── Environment & Secrets ──────────────────
+.env
+.env.local
+*.pem
+*.key
+credentials.json
+
+# ─── Archive & Temp ─────────────────────────
+*.tmp
+*.temp
+*.bak
+*.swp
+*.zip
+*.tar.gz
+*.7z
