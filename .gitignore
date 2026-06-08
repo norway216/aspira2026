@@ -45,6 +45,7 @@ vendor/
 # ─── IDE & Editor ───────────────────────────
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~
